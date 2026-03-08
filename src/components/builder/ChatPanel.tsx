@@ -405,7 +405,7 @@ export function ChatPanel() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, temperature: 0.3, customApiKey: getStoredApiKey() }),
         signal: controller.signal,
       });
 
