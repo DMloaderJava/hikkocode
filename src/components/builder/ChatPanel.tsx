@@ -9,9 +9,10 @@ import {
   LayoutGrid,
   Square,
 } from "lucide-react";
-import { useApp, ChatMessage, GeneratedFile } from "@/context/AppContext";
+import { useApp, ChatMessage, GeneratedFile, GenerationTask, TaskStep } from "@/context/AppContext";
 import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import { TaskCard } from "./TaskCard";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -42,6 +43,41 @@ function stripFilesJson(text: string): string {
     .trim();
 }
 
+function generateTaskTitle(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  if (lower.includes("todo")) return "Build todo application";
+  if (lower.includes("landing")) return "Create landing page";
+  if (lower.includes("auth") || lower.includes("login")) return "Implement authentication";
+  if (lower.includes("dashboard")) return "Build dashboard";
+  if (lower.includes("form")) return "Create form component";
+  if (lower.includes("chat")) return "Build chat interface";
+  if (lower.includes("fix") || lower.includes("bug")) return "Fix reported issues";
+  if (lower.includes("add") || lower.includes("create")) return "Implement new feature";
+  if (lower.includes("style") || lower.includes("design") || lower.includes("ui")) return "Update UI design";
+  // Truncate prompt as title
+  const words = prompt.trim().split(/\s+/).slice(0, 5).join(" ");
+  return words.length > 40 ? words.slice(0, 40) + "…" : words;
+}
+
+function generateTaskSteps(prompt: string): TaskStep[] {
+  const lower = prompt.toLowerCase();
+  const steps: TaskStep[] = [
+    { id: "1", label: "Analyze requirements", status: "pending" },
+  ];
+
+  if (lower.includes("fix") || lower.includes("bug") || lower.includes("error")) {
+    steps.push({ id: "2", label: "Identify root cause", status: "pending" });
+    steps.push({ id: "3", label: "Apply fix", status: "pending" });
+    steps.push({ id: "4", label: "Verify solution", status: "pending" });
+  } else {
+    steps.push({ id: "2", label: "Generate component structure", status: "pending" });
+    steps.push({ id: "3", label: "Write implementation code", status: "pending" });
+    steps.push({ id: "4", label: "Apply styles and polish", status: "pending" });
+  }
+
+  return steps;
+}
+
 export function ChatPanel() {
   const {
     activeProject,
@@ -52,6 +88,7 @@ export function ChatPanel() {
     setLoadingMessage,
     loadingMessage,
     updateLastAssistantMessage,
+    updateLastAssistantTask,
   } = useApp();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -102,13 +139,30 @@ export function ChatPanel() {
   }
 
   const buildConversationHistory = () => {
-    // Only send user and final assistant messages (not streaming ones)
     return activeProject.messages
       .filter((m) => m.content && m.content.length > 0)
       .map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       }));
+  };
+
+  const advanceTaskStep = (task: GenerationTask, stepIndex: number): GenerationTask => {
+    const steps = task.steps.map((s, i) => {
+      if (i < stepIndex) return { ...s, status: "done" as const };
+      if (i === stepIndex) return { ...s, status: "in_progress" as const };
+      return s;
+    });
+    return { ...task, steps };
+  };
+
+  const completeAllSteps = (task: GenerationTask, filesChanged: string[]): GenerationTask => {
+    return {
+      ...task,
+      steps: task.steps.map(s => ({ ...s, status: "done" as const })),
+      filesChanged,
+      toolCount: filesChanged.length,
+    };
   };
 
   const submitPrompt = async (prompt: string) => {
@@ -125,12 +179,33 @@ export function ChatPanel() {
     setIsGenerating(true);
     setLoadingMessage("Thinking...");
 
+    // Create task card
+    const taskTitle = generateTaskTitle(prompt);
+    const taskSteps = generateTaskSteps(prompt);
+    let currentTask: GenerationTask = {
+      id: crypto.randomUUID(),
+      title: taskTitle,
+      steps: taskSteps,
+      filesChanged: [],
+      toolCount: 0,
+      timestamp: new Date(),
+    };
+
+    // Show task card immediately with first step active
+    currentTask = advanceTaskStep(currentTask, 0);
+    addMessage(activeProject.id, {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+      task: currentTask,
+    });
+
     const history = [
       ...buildConversationHistory(),
       { role: "user" as const, content: prompt.trim() },
     ];
 
-    // Add file context if there are existing files
     if (activeProject.files.length > 0) {
       const filesContext = activeProject.files
         .map((f) => `--- ${f.path} ---\n${f.content}`)
@@ -154,12 +229,9 @@ export function ChatPanel() {
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
         const errorMsg = errData.error || `Error ${resp.status}`;
-        addMessage(activeProject.id, {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: `⚠️ ${errorMsg}`,
-          timestamp: new Date(),
-        });
+        updateLastAssistantMessage(activeProject.id, `⚠️ ${errorMsg}`);
+        currentTask = completeAllSteps(currentTask, []);
+        updateLastAssistantTask(activeProject.id, currentTask);
         setIsGenerating(false);
         setLoadingMessage("");
         return;
@@ -167,11 +239,16 @@ export function ChatPanel() {
 
       if (!resp.body) throw new Error("No response body");
 
+      // Advance to step 2
+      currentTask = advanceTaskStep(currentTask, 1);
+      updateLastAssistantTask(activeProject.id, currentTask);
+
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let fullText = "";
       let textBuffer = "";
-      let assistantMsgCreated = false;
+      let hasStartedContent = false;
+      let advancedToStep3 = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -184,7 +261,6 @@ export function ChatPanel() {
           textBuffer = textBuffer.slice(newlineIndex + 1);
 
           if (line.endsWith("\r")) line = line.slice(0, -1);
-          // Skip SSE comments (lines starting with ":") and empty lines
           if (line.startsWith(":") || line.trim() === "") continue;
           if (!line.startsWith("data: ")) continue;
 
@@ -194,26 +270,28 @@ export function ChatPanel() {
           try {
             const parsed = JSON.parse(jsonStr);
             const delta = parsed.choices?.[0]?.delta;
-            // Only process actual content, skip reasoning-only chunks
             const content = delta?.content as string | undefined;
             if (content && content.length > 0) {
               fullText += content;
               const displayText = stripFilesJson(fullText) || "Writing code...";
 
-              if (!assistantMsgCreated) {
-                assistantMsgCreated = true;
-                addMessage(activeProject.id, {
-                  id: crypto.randomUUID(),
-                  role: "assistant",
-                  content: displayText,
-                  timestamp: new Date(),
-                });
-              } else {
-                updateLastAssistantMessage(activeProject.id, displayText);
+              if (!hasStartedContent) {
+                hasStartedContent = true;
+                // Advance to step 2 (generating)
+                currentTask = advanceTaskStep(currentTask, 2);
+                updateLastAssistantTask(activeProject.id, currentTask);
               }
+
+              // When we have significant content, advance to step 3
+              if (!advancedToStep3 && fullText.length > 200) {
+                advancedToStep3 = true;
+                currentTask = advanceTaskStep(currentTask, 3);
+                updateLastAssistantTask(activeProject.id, currentTask);
+              }
+
+              updateLastAssistantMessage(activeProject.id, displayText);
             }
           } catch {
-            // Incomplete JSON — put back and wait for more data
             textBuffer = line + "\n" + textBuffer;
             break;
           }
@@ -239,9 +317,14 @@ export function ChatPanel() {
 
       // Extract files if present
       const files = extractFiles(fullText);
+      const fileNames = files ? files.map(f => f.path) : [];
       if (files && files.length > 0) {
         setFiles(activeProject.id, files, prompt.trim());
       }
+
+      // Complete all task steps
+      currentTask = completeAllSteps(currentTask, fileNames);
+      updateLastAssistantTask(activeProject.id, currentTask);
 
       // Final display
       const cleanText = stripFilesJson(fullText).trim();
@@ -251,25 +334,12 @@ export function ChatPanel() {
         finalDisplay = `${cleanText || "Done!"}\n\n📁 **Generated files:** ${fileList}`;
       }
 
-      if (assistantMsgCreated) {
-        updateLastAssistantMessage(activeProject.id, finalDisplay || fullText);
-        // Update the DB with final content
-      } else {
-        addMessage(activeProject.id, {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: finalDisplay || fullText || "I didn't get a response. Please try again.",
-          timestamp: new Date(),
-        });
-      }
+      updateLastAssistantMessage(activeProject.id, finalDisplay || fullText || "Done!");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      addMessage(activeProject.id, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `⚠️ Something went wrong: ${errorMessage}\n\nPlease try again.`,
-        timestamp: new Date(),
-      });
+      updateLastAssistantMessage(activeProject.id, `⚠️ Something went wrong: ${errorMessage}`);
+      currentTask = completeAllSteps(currentTask, []);
+      updateLastAssistantTask(activeProject.id, currentTask);
     } finally {
       setIsGenerating(false);
       setLoadingMessage("");
@@ -313,13 +383,28 @@ export function ChatPanel() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-2.5">
-                      <div className="w-6 h-6 rounded-md gradient-lovable flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Bot className="w-3 h-3 text-white" />
-                      </div>
-                      <div className="max-w-[88%] text-sm text-foreground leading-relaxed prose prose-sm prose-stone [&>*:first-child]:mt-0">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
+                    <div className="space-y-3">
+                      {/* Task card */}
+                      {msg.task && (
+                        <TaskCard
+                          title={msg.task.title}
+                          steps={msg.task.steps}
+                          toolCount={msg.task.toolCount}
+                          filesChanged={msg.task.filesChanged}
+                          timestamp={msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        />
+                      )}
+                      {/* Text content */}
+                      {msg.content && (
+                        <div className="flex gap-2.5">
+                          <div className="w-6 h-6 rounded-md gradient-lovable flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Bot className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="max-w-[88%] text-sm text-foreground leading-relaxed prose prose-sm prose-stone [&>*:first-child]:mt-0">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
@@ -385,7 +470,13 @@ export function ChatPanel() {
                 <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Templates">
                   <LayoutGrid className="w-3.5 h-3.5" />
                 </button>
-                <div className="w-6 h-6 rounded-full bg-foreground ml-1" />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isGenerating}
+                  className="w-7 h-7 rounded-full bg-foreground flex items-center justify-center ml-1 disabled:opacity-30 transition-opacity"
+                >
+                  <ArrowUp className="w-3.5 h-3.5 text-background" />
+                </button>
               </div>
             </div>
           </div>
