@@ -1,6 +1,5 @@
 import { FileCode, Folder, ChevronRight } from "lucide-react";
 import { useApp, GeneratedFile } from "@/context/AppContext";
-import { motion } from "framer-motion";
 
 const langIcons: Record<string, string> = {
   html: "🌐",
@@ -15,14 +14,13 @@ export function FileExplorer() {
 
   if (!activeProject || activeProject.files.length === 0) {
     return (
-      <div className="p-4 text-muted-foreground text-sm text-center">
-        <Folder className="w-8 h-8 mx-auto mb-2 opacity-30" />
-        <p>No files yet. Start chatting to generate your project!</p>
+      <div className="p-4 text-muted-foreground text-xs text-center">
+        <Folder className="w-6 h-6 mx-auto mb-2 opacity-20" />
+        <p>No files yet</p>
       </div>
     );
   }
 
-  // Group files by directory
   const dirs: Record<string, GeneratedFile[]> = {};
   activeProject.files.forEach((file) => {
     const parts = file.path.split("/").filter(Boolean);
@@ -32,34 +30,32 @@ export function FileExplorer() {
   });
 
   return (
-    <div className="p-2">
-      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+    <div className="p-1.5">
+      <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         Explorer
       </div>
       {Object.entries(dirs).map(([dir, files]) => (
-        <div key={dir} className="mb-1">
+        <div key={dir} className="mb-0.5">
           {dir !== "/" && (
-            <div className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground">
-              <ChevronRight className="w-3 h-3" />
-              <Folder className="w-3 h-3" />
+            <div className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground">
+              <ChevronRight className="w-2.5 h-2.5" />
+              <Folder className="w-2.5 h-2.5" />
               <span>{dir}</span>
             </div>
           )}
           {files.map((file) => (
-            <motion.button
+            <button
               key={file.path}
-              whileHover={{ x: 2 }}
               onClick={() => setActiveFile(file)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
+              className={`w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors ${
                 activeFile?.path === file.path
-                  ? "bg-primary/10 text-primary"
-                  : "text-secondary-foreground hover:bg-secondary"
+                  ? "bg-secondary text-foreground font-medium"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
-              <span>{langIcons[file.language] || "📄"}</span>
-              <FileCode className="w-3 h-3 opacity-50" />
+              <span className="text-[10px]">{langIcons[file.language] || "📄"}</span>
               <span className="truncate">{file.name}</span>
-            </motion.button>
+            </button>
           ))}
         </div>
       ))}

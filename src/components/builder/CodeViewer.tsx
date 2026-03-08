@@ -8,10 +8,10 @@ export function CodeViewer() {
 
   if (!activeFile) {
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+      <div className="flex-1 flex items-center justify-center text-muted-foreground bg-secondary/20">
         <div className="text-center">
-          <Code className="w-12 h-12 mx-auto mb-4 opacity-30" />
-          <p className="text-sm">Select a file to view its code</p>
+          <Code className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">Select a file to view code</p>
         </div>
       </div>
     );
@@ -25,29 +25,29 @@ export function CodeViewer() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-secondary/50">
-        <div className="flex items-center gap-2 text-sm">
-          <Code className="w-4 h-4 text-primary" />
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
+        <div className="flex items-center gap-2 text-xs">
+          <Code className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-foreground font-medium">{activeFile.name}</span>
-          <span className="text-muted-foreground text-xs">({activeFile.language})</span>
+          <span className="text-muted-foreground px-1.5 py-0.5 bg-secondary rounded text-[10px]">{activeFile.language}</span>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-          {copied ? "Copied!" : "Copy"}
+          {copied ? <Check className="w-3 h-3 text-accent" /> : <Copy className="w-3 h-3" />}
+          {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <div className="flex-1 overflow-auto p-4 scrollbar-thin">
-        <pre className="text-sm font-mono leading-relaxed">
+      <div className="flex-1 overflow-auto p-0 scrollbar-thin bg-card">
+        <pre className="text-xs font-mono leading-5 p-4">
           <code>
             {activeFile.content.split("\n").map((line, i) => (
-              <div key={i} className="flex">
-                <span className="inline-block w-10 text-right pr-4 text-muted-foreground/50 select-none text-xs">
+              <div key={i} className="flex hover:bg-secondary/50 transition-colors">
+                <span className="inline-block w-10 text-right pr-4 text-muted-foreground/40 select-none">
                   {i + 1}
                 </span>
-                <span className="text-secondary-foreground">{line || " "}</span>
+                <span className="text-foreground">{line || " "}</span>
               </div>
             ))}
           </code>

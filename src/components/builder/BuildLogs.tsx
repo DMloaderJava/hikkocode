@@ -18,18 +18,14 @@ export function BuildLogs() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-secondary/50">
-        <Terminal className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">Build Logs</span>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-0.5 scrollbar-thin">
         <AnimatePresence mode="popLayout">
           {logs.map((log) => (
             <motion.div
               key={log.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className={`${log.type === "success" ? "text-primary" : "text-muted-foreground"}`}
+              className={`${log.type === "success" ? "text-accent" : "text-muted-foreground"}`}
             >
               {log.text}
             </motion.div>
@@ -46,7 +42,7 @@ export function BuildLogs() {
           )}
         </AnimatePresence>
         {logs.length === 0 && !isGenerating && (
-          <div className="text-muted-foreground/50">Waiting for build...</div>
+          <div className="text-muted-foreground/40 text-center pt-4">Waiting for build...</div>
         )}
       </div>
     </div>
