@@ -2,51 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
   :root {
-    --background: 220 20% 7%;
-    --foreground: 150 60% 90%;
+    --background: 40 33% 97%;
+    --foreground: 20 10% 12%;
 
-    --card: 220 20% 10%;
-    --card-foreground: 150 20% 88%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 10% 12%;
 
-    --popover: 220 20% 10%;
-    --popover-foreground: 150 20% 88%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 10% 12%;
 
-    --primary: 155 100% 50%;
-    --primary-foreground: 220 20% 7%;
+    --primary: 20 10% 12%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 20% 14%;
-    --secondary-foreground: 150 20% 80%;
+    --secondary: 30 15% 93%;
+    --secondary-foreground: 20 10% 25%;
 
-    --muted: 220 15% 15%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 30 10% 93%;
+    --muted-foreground: 20 5% 50%;
 
-    --accent: 185 80% 50%;
-    --accent-foreground: 220 20% 7%;
+    --accent: 15 90% 58%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 18%;
-    --input: 220 15% 18%;
-    --ring: 155 100% 50%;
+    --border: 30 10% 88%;
+    --input: 30 10% 88%;
+    --ring: 15 90% 58%;
 
     --radius: 0.75rem;
 
-    --neon-glow: 0 0 20px hsl(155 100% 50% / 0.3), 0 0 60px hsl(155 100% 50% / 0.1);
-    --cyan-glow: 0 0 20px hsl(185 80% 50% / 0.3), 0 0 60px hsl(185 80% 50% / 0.1);
+    --gradient-lovable: linear-gradient(135deg, hsl(220 80% 70%), hsl(300 60% 65%), hsl(15 90% 60%));
 
-    --sidebar-background: 220 20% 5%;
-    --sidebar-foreground: 150 20% 80%;
-    --sidebar-primary: 155 100% 50%;
-    --sidebar-primary-foreground: 220 20% 7%;
-    --sidebar-accent: 220 20% 12%;
-    --sidebar-accent-foreground: 150 20% 80%;
-    --sidebar-border: 220 15% 15%;
-    --sidebar-ring: 155 100% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 20 10% 40%;
+    --sidebar-primary: 20 10% 12%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 15% 95%;
+    --sidebar-accent-foreground: 20 10% 25%;
+    --sidebar-border: 30 10% 90%;
+    --sidebar-ring: 15 90% 58%;
   }
 }
 
@@ -56,8 +55,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   code, pre, .font-mono {
@@ -66,36 +65,30 @@
 }
 
 @layer utilities {
-  .neon-text {
-    color: hsl(var(--primary));
-    text-shadow: 0 0 10px hsl(155 100% 50% / 0.5), 0 0 40px hsl(155 100% 50% / 0.2);
+  .gradient-lovable {
+    background: linear-gradient(135deg, hsl(220 80% 70%), hsl(300 60% 65%), hsl(15 90% 60%));
   }
 
-  .neon-border {
-    border-color: hsl(155 100% 50% / 0.3);
-    box-shadow: var(--neon-glow);
-  }
-
-  .glass {
-    background: hsl(220 20% 10% / 0.8);
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(220 15% 18% / 0.5);
-  }
-
-  .gradient-primary {
-    background: linear-gradient(135deg, hsl(155 100% 50%), hsl(185 80% 50%));
-  }
-
-  .gradient-text {
-    background: linear-gradient(135deg, hsl(155 100% 50%), hsl(185 80% 50%));
+  .gradient-lovable-text {
+    background: linear-gradient(135deg, hsl(220 80% 55%), hsl(300 60% 50%), hsl(15 90% 55%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
+  .gradient-hero {
+    background: linear-gradient(
+      180deg,
+      hsl(40 33% 97%) 0%,
+      hsl(220 80% 92%) 30%,
+      hsl(300 50% 88%) 60%,
+      hsl(15 80% 85%) 100%
+    );
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(220 15% 20%) transparent;
+    scrollbar-color: hsl(30 10% 82%) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -107,7 +100,15 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(220 15% 25%);
+    background: hsl(30 10% 82%);
     border-radius: 3px;
+  }
+
+  .shadow-lovable {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  }
+
+  .shadow-lovable-md {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   }
 }

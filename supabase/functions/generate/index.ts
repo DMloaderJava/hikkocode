@@ -36,7 +36,7 @@ When the user describes an app, generate ALL the files needed. Return ONLY valid
 Rules:
 1. ALWAYS include index.html, styles.css, and app.js at minimum.
 2. The HTML must link to styles.css and include a script tag for app.js.
-3. Use modern, dark-themed styling with a neon green (#00ff88) accent color.
+3. Use modern, clean styling. Dark theme with accent colors.
 4. Make the app fully functional with vanilla HTML/CSS/JS.
 5. Use emoji accents in the UI for personality.
 6. Include a footer saying "Built with Laughable AI 🤖".
@@ -54,17 +54,17 @@ serve(async (req) => {
   try {
     const { prompt, existingFiles, stream } = await req.json();
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY is not configured" }),
+        JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const messages: Array<{ role: string; parts: Array<{ text: string }> }> = [
-      { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-      { role: "model", parts: [{ text: "Understood. I will generate complete web apps as structured JSON with the exact format specified." }] },
+    // Build messages for the API
+    const messages: Array<{ role: string; content: string }> = [
+      { role: "system", content: SYSTEM_PROMPT },
     ];
 
     if (existingFiles && existingFiles.length > 0) {
@@ -73,43 +73,52 @@ serve(async (req) => {
         .join("\n\n");
       messages.push({
         role: "user",
-        parts: [{ text: `Here are the current project files:\n\n${filesContext}\n\nNow apply this change: ${prompt}` }],
+        content: `Here are the current project files:\n\n${filesContext}\n\nNow apply this change: ${prompt}`,
       });
     } else {
       messages.push({
         role: "user",
-        parts: [{ text: `Build this app: ${prompt}` }],
+        content: `Build this app: ${prompt}`,
       });
     }
 
     // Streaming mode
     if (stream) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: messages,
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 8192,
-              responseMimeType: "application/json",
-            },
-          }),
-        }
-      );
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3.1-pro-preview",
+          messages,
+          stream: true,
+        }),
+      });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Usage limit reached. Please add credits to your workspace." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         const errorText = await response.text();
-        console.error("Gemini stream error:", response.status, errorText);
+        console.error("AI gateway stream error:", response.status, errorText);
         return new Response(
-          JSON.stringify({ error: `Gemini API error: ${response.status}` }),
+          JSON.stringify({ error: `AI gateway error: ${response.status}` }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Transform Gemini SSE to our SSE format
+      // Transform OpenAI-compatible SSE to our format
       const transformStream = new TransformStream({
         transform(chunk, controller) {
           const text = new TextDecoder().decode(chunk);
@@ -117,10 +126,15 @@ serve(async (req) => {
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const jsonStr = line.slice(6).trim();
-            if (!jsonStr || jsonStr === "[DONE]") continue;
+            if (!jsonStr || jsonStr === "[DONE]") {
+              if (jsonStr === "[DONE]") {
+                controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+              }
+              continue;
+            }
             try {
               const parsed = JSON.parse(jsonStr);
-              const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+              const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 controller.enqueue(
                   new TextEncoder().encode(`data: ${JSON.stringify({ text: content })}\n\n`)
@@ -128,9 +142,6 @@ serve(async (req) => {
               }
             } catch { /* skip partial */ }
           }
-        },
-        flush(controller) {
-          controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
         },
       });
 
@@ -141,34 +152,42 @@ serve(async (req) => {
       });
     }
 
-    // Non-streaming mode (fallback)
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: messages,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+    // Non-streaming mode
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3.1-pro-preview",
+        messages,
+      }),
+    });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please wait and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Usage limit reached. Please add credits." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
+      console.error("AI gateway error:", response.status, errorText);
       return new Response(
-        JSON.stringify({ error: `Gemini API error: ${response.status}` }),
+        JSON.stringify({ error: `AI gateway error: ${response.status}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const textContent = data.choices?.[0]?.message?.content;
 
     if (!textContent) {
       return new Response(

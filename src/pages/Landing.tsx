@@ -1,117 +1,142 @@
 import { motion } from "framer-motion";
-import { Sparkles, Code, Eye, MessageSquare, Zap, ArrowRight } from "lucide-react";
+import { ArrowUp, Plus, MessageCircle, Lightbulb } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useState, FormEvent } from "react";
+import { useApp } from "@/context/AppContext";
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { createProject } = useApp();
+  const [prompt, setPrompt] = useState("");
 
-  const features = [
-    { icon: MessageSquare, title: "Chat-Driven Dev", desc: "Describe your app in plain English. We'll pretend to understand." },
-    { icon: Eye, title: "Live Preview", desc: "See your app render in real-time. Watch the bugs appear instantly!" },
-    { icon: Code, title: "Code Generation", desc: "AI writes your code so you can take credit for it." },
-    { icon: Zap, title: "Instant Deploy", desc: "Deploy at the speed of a well-caffeinated hamster." },
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim()) return;
+    const project = createProject(prompt.trim().slice(0, 40), prompt.trim());
+    navigate("/builder", { state: { initialPrompt: prompt.trim() } });
+  };
+
+  const suggestions = [
+    "Build a task management app",
+    "Create a portfolio website",
+    "Make a weather dashboard",
+    "Design a recipe sharing app",
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen gradient-hero flex flex-col">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-8 py-4 border-b border-border">
+      <nav className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-primary" />
-          <span className="font-bold text-xl gradient-text">Laughable</span>
+          <div className="w-7 h-7 rounded-lg gradient-lovable" />
+          <span className="font-semibold text-lg text-foreground">Laughable</span>
         </div>
-        <button
-          onClick={() => navigate("/builder")}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          Start Building
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/builder")}
+            className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Log in
+          </button>
+          <button
+            onClick={() => navigate("/builder")}
+            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Get started
+          </button>
+        </div>
       </nav>
 
       {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-4 pt-24 pb-16">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
+          className="text-center max-w-2xl mx-auto"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm mb-8 border border-primary/20">
-            <Sparkles className="w-4 h-4" />
-            Parody AI App Builder — For Educational Purposes
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Build apps with
-            <br />
-            <span className="gradient-text">questionable AI</span>
+          <h1 className="text-4xl md:text-5xl font-semibold mb-3 text-foreground leading-tight">
+            Build something<br />
+            <span className="gradient-lovable-text">Laughable</span>
           </h1>
-
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-10">
-            The AI app builder that generates code just like the real ones — except we're honest about the chaos. 
-            Describe your dream app and watch it materialize (mostly).
+          <p className="text-muted-foreground text-base mb-10">
+            Create apps and websites by chatting with AI
           </p>
-
-          <div className="flex items-center gap-4 justify-center">
-            <button
-              onClick={() => navigate("/builder")}
-              className="px-8 py-3 rounded-xl gradient-primary text-primary-foreground font-semibold text-lg hover:opacity-90 transition-all flex items-center gap-2"
-            >
-              Start Building <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
         </motion.div>
-      </section>
 
-      {/* Terminal mockup */}
-      <section className="max-w-3xl mx-auto px-4 mb-24">
+        {/* Prompt Input Card */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="rounded-xl border border-border bg-card overflow-hidden"
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="w-full max-w-xl mx-auto"
         >
-          <div className="flex items-center gap-2 px-4 py-3 bg-secondary/50 border-b border-border">
-            <div className="w-3 h-3 rounded-full bg-destructive/60" />
-            <div className="w-3 h-3 rounded-full bg-accent/40" />
-            <div className="w-3 h-3 rounded-full bg-primary/40" />
-            <span className="ml-2 text-xs text-muted-foreground">laughable-terminal</span>
-          </div>
-          <div className="p-6 font-mono text-sm space-y-2">
-            <p><span className="text-primary">$</span> <span className="text-muted-foreground">laughable create my-app</span></p>
-            <p className="text-accent">🎨 Convincing CSS to align divs...</p>
-            <p className="text-accent">🧠 Teaching AI what flexbox means...</p>
-            <p className="text-accent">🐛 Pre-debugging your bugs...</p>
-            <p className="text-primary">✅ Project generated! (4 files, 0 regrets)</p>
-            <p><span className="text-primary">$</span> <span className="text-muted-foreground animate-pulse-neon">▊</span></p>
+          <form
+            onSubmit={handleSubmit}
+            className="bg-card rounded-2xl shadow-lovable-md border border-border p-4"
+          >
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Ask Laughable to build your app..."
+              className="w-full bg-transparent text-foreground placeholder:text-muted-foreground text-sm resize-none outline-none min-h-[80px] mb-3"
+              rows={3}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <Lightbulb className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={!prompt.trim()}
+                className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-30"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+
+          {/* Suggestions */}
+          <div className="flex flex-wrap gap-2 mt-4 justify-center">
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                onClick={() => setPrompt(s)}
+                className="px-3 py-1.5 rounded-full text-xs text-muted-foreground bg-card border border-border hover:border-foreground/20 hover:text-foreground transition-colors"
+              >
+                {s}
+              </button>
+            ))}
           </div>
         </motion.div>
-      </section>
-
-      {/* Features */}
-      <section className="max-w-5xl mx-auto px-4 pb-24">
-        <h2 className="text-3xl font-bold text-center mb-12">
-          Everything you need <span className="gradient-text">(probably)</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {features.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * i }}
-              className="rounded-xl border border-border bg-card p-6 hover:border-primary/30 transition-colors"
-            >
-              <f.icon className="w-8 h-8 text-primary mb-4" />
-              <h3 className="font-semibold text-lg mb-2 text-foreground">{f.title}</h3>
-              <p className="text-sm text-muted-foreground">{f.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      </div>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        <p>🤖 Laughable AI — A parody for educational purposes. Not affiliated with any real AI tool.</p>
+      <footer className="py-6 text-center text-xs text-muted-foreground">
+        🤖 Laughable AI — A parody for educational purposes
       </footer>
     </div>
   );
