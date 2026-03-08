@@ -256,14 +256,13 @@ export async function runAutonomousAgent(
     // === PHASE 4: APPLY CHANGES (SANDBOX) ===
     emit("applying", "Applying changes in sandbox...");
 
-    const newFiles = extractFilesFromText(fullText);
-    if (!newFiles || newFiles.length === 0) {
+    if (!bestFiles || bestFiles.length === 0) {
       emit("error", "No files generated");
       return { success: false, plan, files: existingFiles, diffs: [], diffSummaryText: "", error: "No files generated", phases };
     }
 
     const sandbox = createSandbox(existingFiles);
-    const finalFiles = commitSandbox({ ...sandbox, working: newFiles });
+    const finalFiles = commitSandbox({ ...sandbox, working: bestFiles });
 
     emit("applying", "Changes applied", `${newFiles.length} files`);
 
