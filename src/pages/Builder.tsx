@@ -4,6 +4,9 @@ import { FileExplorer } from "@/components/builder/FileExplorer";
 import { CodeViewer } from "@/components/builder/CodeViewer";
 import { LivePreview } from "@/components/builder/LivePreview";
 import { PublishDialog } from "@/components/builder/PublishDialog";
+import { BuildLogs } from "@/components/builder/BuildLogs";
+import { VersionHistory } from "@/components/builder/VersionHistory";
+import { GitHubDialog } from "@/components/builder/GitHubDialog";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -12,7 +15,6 @@ import {
   Code,
   Terminal,
   GitBranch,
-  MoreHorizontal,
   Share2,
   ChevronDown,
   PanelLeft,
@@ -22,10 +24,10 @@ import {
   RefreshCw,
   ExternalLink,
   Slash,
-  X,
+  Github,
 } from "lucide-react";
 
-type RightView = "preview" | "code";
+type RightView = "preview" | "code" | "terminal" | "history";
 
 export default function Builder() {
   const { activeFile, activeProject, setActiveFile, isGenerating } = useApp();
@@ -33,6 +35,7 @@ export default function Builder() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [showPublish, setShowPublish] = useState(false);
+  const [showGitHub, setShowGitHub] = useState(false);
   const isMobile = useIsMobile();
 
   const effectiveView = activeFile ? "code" : rightView;
@@ -100,10 +103,26 @@ export default function Builder() {
             >
               <Code className="w-3.5 h-3.5" />
             </button>
-            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors hidden sm:block" title="Terminal">
+            <button
+              onClick={() => { setRightView("terminal"); setActiveFile(null); }}
+              className={`p-1.5 rounded-md transition-all hidden sm:block ${
+                effectiveView === "terminal"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Build Logs"
+            >
               <Terminal className="w-3.5 h-3.5" />
             </button>
-            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors hidden sm:block" title="Version History">
+            <button
+              onClick={() => { setRightView("history"); setActiveFile(null); }}
+              className={`p-1.5 rounded-md transition-all hidden sm:block ${
+                effectiveView === "history"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Version History"
+            >
               <GitBranch className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -142,8 +161,16 @@ export default function Builder() {
             </button>
           </div>
 
-          {/* Right: Share, Publish */}
+          {/* Right: GitHub, Share, Publish */}
           <div className="flex items-center gap-1.5 ml-2">
+            <button
+              onClick={() => setShowGitHub(true)}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="GitHub"
+            >
+              <Github className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">GitHub</span>
+            </button>
             <button className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <Share2 className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Share</span>
@@ -175,6 +202,14 @@ export default function Builder() {
                     <CodeViewer />
                   </div>
                 </div>
+              ) : effectiveView === "terminal" ? (
+                <div className="flex-1 min-w-0 bg-secondary/20">
+                  <BuildLogs />
+                </div>
+              ) : effectiveView === "history" ? (
+                <div className="flex-1 min-w-0 bg-secondary/20">
+                  <VersionHistory />
+                </div>
               ) : (
                 <ChatPanel />
               )}
@@ -186,7 +221,7 @@ export default function Builder() {
                 <ChatPanel />
               </div>
               <div className="w-px bg-border hover:bg-accent/40 cursor-col-resize transition-colors" />
-              {/* Right: Preview / Code */}
+              {/* Right: Preview / Code / Terminal / History */}
               <div className="flex-1 flex min-w-0">
                 {effectiveView === "code" && (
                   <div className="w-52 border-r border-border overflow-y-auto scrollbar-thin bg-card">
@@ -196,6 +231,8 @@ export default function Builder() {
                 <div className="flex-1 min-w-0 bg-secondary/20">
                   {effectiveView === "preview" && <LivePreview device={device} />}
                   {effectiveView === "code" && <CodeViewer />}
+                  {effectiveView === "terminal" && <BuildLogs />}
+                  {effectiveView === "history" && <VersionHistory />}
                 </div>
               </div>
             </>
@@ -204,6 +241,7 @@ export default function Builder() {
       </div>
 
       <PublishDialog open={showPublish} onClose={() => setShowPublish(false)} />
+      <GitHubDialog open={showGitHub} onClose={() => setShowGitHub(false)} />
     </div>
   );
 }
