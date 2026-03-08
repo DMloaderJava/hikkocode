@@ -188,6 +188,9 @@ export function ChatPanel() {
     setIsGenerating(true);
     setLoadingMessage("Thinking...");
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     // Create task card
     const taskTitle = generateTaskTitle(prompt);
     const taskSteps = generateTaskSteps(prompt);
