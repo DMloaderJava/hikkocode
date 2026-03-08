@@ -6,6 +6,7 @@ import { LivePreview } from "@/components/builder/LivePreview";
 import { PublishDialog } from "@/components/builder/PublishDialog";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Eye,
   Code,
@@ -15,13 +16,13 @@ import {
   Share2,
   ChevronDown,
   PanelLeft,
-  Globe,
   Monitor,
   Tablet,
   Smartphone,
   RefreshCw,
   ExternalLink,
   Slash,
+  X,
 } from "lucide-react";
 
 type RightView = "preview" | "code";
@@ -32,19 +33,32 @@ export default function Builder() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [showPublish, setShowPublish] = useState(false);
+  const isMobile = useIsMobile();
 
   const effectiveView = activeFile ? "code" : rightView;
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
-      {/* Collapsible project sidebar */}
-      {showSidebar && <ProjectSidebar onCollapse={() => setShowSidebar(false)} />}
+      {/* Sidebar: overlay on mobile, inline on desktop */}
+      {showSidebar && (
+        <>
+          {isMobile && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowSidebar(false)}
+            />
+          )}
+          <div className={isMobile ? "fixed inset-y-0 left-0 z-50" : ""}>
+            <ProjectSidebar onCollapse={() => setShowSidebar(false)} />
+          </div>
+        </>
+      )}
 
       {/* Main layout */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* ===== TOP BAR ===== */}
         <div className="h-11 flex items-center border-b border-border bg-card px-2 gap-1">
-          {/* Left section: sidebar toggle + project name */}
+          {/* Left section */}
           <div className="flex items-center gap-1 min-w-0 mr-2">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
@@ -52,9 +66,8 @@ export default function Builder() {
             >
               <PanelLeft className="w-4 h-4" />
             </button>
-            {/* Separator */}
-            <div className="w-px h-5 bg-border mx-0.5" />
-            <button className="flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-secondary transition-colors">
+            <div className="w-px h-5 bg-border mx-0.5 hidden sm:block" />
+            <button className="hidden sm:flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-secondary transition-colors">
               <div className="w-5 h-5 rounded gradient-lovable flex-shrink-0" />
               <span className="text-sm font-medium text-foreground truncate max-w-[140px]">
                 {activeProject?.name || "Laughable"}
@@ -63,26 +76,21 @@ export default function Builder() {
             </button>
           </div>
 
-          {/* Center: View tabs — icon-based like Lovable */}
+          {/* Center: View tabs */}
           <div className="flex items-center bg-secondary/60 rounded-lg p-0.5 gap-0.5">
             <button
-              onClick={() => {
-                setRightView("preview");
-                setActiveFile(null);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              onClick={() => { setRightView("preview"); setActiveFile(null); }}
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 effectiveView === "preview"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Eye className="w-3.5 h-3.5" />
-              Preview
+              <span className="hidden sm:inline">Preview</span>
             </button>
             <button
-              onClick={() => {
-                setRightView("code");
-              }}
+              onClick={() => setRightView("code")}
               className={`p-1.5 rounded-md transition-all ${
                 effectiveView === "code"
                   ? "bg-card text-foreground shadow-sm"
@@ -92,30 +100,17 @@ export default function Builder() {
             >
               <Code className="w-3.5 h-3.5" />
             </button>
-            <button
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-              title="Terminal"
-            >
+            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors hidden sm:block" title="Terminal">
               <Terminal className="w-3.5 h-3.5" />
             </button>
-            <button
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-              title="Version History"
-            >
+            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors hidden sm:block" title="Version History">
               <GitBranch className="w-3.5 h-3.5" />
-            </button>
-            <button
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-              title="More"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Center-right: Device toggles + URL path + refresh/expand */}
+          {/* Center-right: Device toggles + URL */}
           <div className="flex-1" />
-          <div className="flex items-center gap-1.5">
-            {/* Device toggles */}
+          <div className="hidden md:flex items-center gap-1.5">
             <div className="flex items-center gap-0">
               {([
                 { id: "desktop" as const, icon: Monitor },
@@ -135,37 +130,23 @@ export default function Builder() {
                 </button>
               ))}
             </div>
-
-            {/* URL path input */}
             <div className="flex items-center bg-secondary/60 rounded-md px-2 py-1 gap-1 min-w-[80px]">
               <Slash className="w-3 h-3 text-muted-foreground/50" />
               <span className="text-xs text-muted-foreground/60 select-none">/</span>
             </div>
-
-            {/* Refresh */}
-            <button
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              title="Refresh"
-            >
+            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Refresh">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
-            {/* Open external */}
-            <button
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              title="Open in new tab"
-            >
+            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Open in new tab">
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Right: Share, Upgrade, Publish */}
+          {/* Right: Share, Publish */}
           <div className="flex items-center gap-1.5 ml-2">
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <button className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <Share2 className="w-3.5 h-3.5" />
-              Share
-            </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent text-accent text-xs font-medium hover:bg-accent/10 transition-colors">
-              Upgrade
+              <span className="hidden lg:inline">Share</span>
             </button>
             <button
               onClick={() => setShowPublish(true)}
@@ -178,30 +159,50 @@ export default function Builder() {
 
         {/* ===== CONTENT AREA ===== */}
         <div className="flex-1 flex min-h-0">
-          {/* Left: Chat panel */}
-          <div className="w-[420px] min-w-[340px] flex flex-col border-r border-border bg-card">
-            <ChatPanel />
-          </div>
-
-          {/* Draggable divider placeholder */}
-          <div className="w-px bg-border hover:bg-accent/40 cursor-col-resize transition-colors" />
-
-          {/* Right: Preview / Code */}
-          <div className="flex-1 flex min-w-0">
-            {effectiveView === "code" && (
-              <div className="w-52 border-r border-border overflow-y-auto scrollbar-thin bg-card">
-                <FileExplorer />
-              </div>
-            )}
-            <div className="flex-1 min-w-0 bg-secondary/20">
-              {effectiveView === "preview" && <LivePreview device={device} />}
-              {effectiveView === "code" && <CodeViewer />}
+          {/* Mobile: show chat or preview, not both */}
+          {isMobile ? (
+            <div className="flex-1 flex flex-col min-w-0">
+              {effectiveView === "preview" ? (
+                <div className="flex-1 min-w-0 bg-secondary/20">
+                  <LivePreview device={device} />
+                </div>
+              ) : effectiveView === "code" ? (
+                <div className="flex-1 flex min-w-0">
+                  <div className="w-44 border-r border-border overflow-y-auto scrollbar-thin bg-card">
+                    <FileExplorer />
+                  </div>
+                  <div className="flex-1 min-w-0 bg-secondary/20">
+                    <CodeViewer />
+                  </div>
+                </div>
+              ) : (
+                <ChatPanel />
+              )}
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Left: Chat panel */}
+              <div className="w-[420px] min-w-[340px] flex flex-col border-r border-border bg-card">
+                <ChatPanel />
+              </div>
+              <div className="w-px bg-border hover:bg-accent/40 cursor-col-resize transition-colors" />
+              {/* Right: Preview / Code */}
+              <div className="flex-1 flex min-w-0">
+                {effectiveView === "code" && (
+                  <div className="w-52 border-r border-border overflow-y-auto scrollbar-thin bg-card">
+                    <FileExplorer />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 bg-secondary/20">
+                  {effectiveView === "preview" && <LivePreview device={device} />}
+                  {effectiveView === "code" && <CodeViewer />}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Publish Dialog */}
       <PublishDialog open={showPublish} onClose={() => setShowPublish(false)} />
     </div>
   );
