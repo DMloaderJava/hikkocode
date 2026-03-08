@@ -3,6 +3,7 @@ import { ChatPanel } from "@/components/builder/ChatPanel";
 import { FileExplorer } from "@/components/builder/FileExplorer";
 import { CodeViewer } from "@/components/builder/CodeViewer";
 import { LivePreview } from "@/components/builder/LivePreview";
+import { PublishDialog } from "@/components/builder/PublishDialog";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import {
