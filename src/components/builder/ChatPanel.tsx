@@ -730,23 +730,7 @@ export function ChatPanel() {
                 >
                   <Image className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const suggestions = [
-                      "Add a dark mode toggle",
-                      "Make it responsive for mobile",
-                      "Add form validation",
-                      "Improve the loading states",
-                      "Add animations and transitions",
-                    ];
-                    setInput(suggestions[Math.floor(Math.random() * suggestions.length)]);
-                  }}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  title="Suggestions"
-                >
-                  <Lightbulb className="w-3.5 h-3.5" />
-                </button>
+                <ApiKeyButton />
                 <button
                   type="button"
                   onClick={() => {
