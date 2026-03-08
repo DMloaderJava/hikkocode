@@ -125,6 +125,14 @@ export function ProjectSidebar({ onCollapse }: { onCollapse?: () => void }) {
 
       {/* Footer with user info */}
       <div className="p-2 border-t border-border">
+        {/* Theme toggle */}
+        <button
+          onClick={() => setIsDark(!isDark)}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors mb-1"
+        >
+          {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {isDark ? "Light Mode" : "Dark Mode"}
+        </button>
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs flex-shrink-0">
             {user?.email?.[0]?.toUpperCase() || "?"}
