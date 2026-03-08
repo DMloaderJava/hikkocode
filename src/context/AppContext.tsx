@@ -405,6 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoadingMessage,
       restoreVersion,
       updateLastAssistantMessage,
+      updateLastAssistantTask,
       signOut,
       loadProjects,
     }}>
