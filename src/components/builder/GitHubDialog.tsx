@@ -88,6 +88,8 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
   const [newRepoDesc, setNewRepoDesc] = useState("");
   const [newRepoPrivate, setNewRepoPrivate] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [creatingPR, setCreatingPR] = useState(false);
+  const [prResult, setPrResult] = useState<PRResult | null>(null);
 
   // Load GitHub user + repos on open
   useEffect(() => {
