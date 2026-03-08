@@ -327,10 +327,10 @@ export function ChatPanel() {
       // === PHASE 2: Build task steps from plan ===
       const planStepTime = Date.now() - startTime;
 
-      if (plan && plan.steps && plan.steps.length > 0) {
+      if (plan && plan.plan && plan.plan.length > 0) {
         const agentSteps = planToSteps(plan);
         agentSteps[0].duration = planStepTime;
-        agentSteps[1].duration = planStepTime;
+        if (agentSteps.length > 1) agentSteps[1].duration = planStepTime;
 
         currentTask = {
           ...currentTask,
@@ -340,6 +340,10 @@ export function ChatPanel() {
             analysis: plan.analysis,
             approach: plan.approach,
             technologies: plan.technologies,
+            files_to_read: plan.files_to_read,
+            files_to_edit: plan.files_to_edit,
+            new_files: plan.new_files,
+            planSteps: plan.plan,
           },
         } as GenerationTask;
       } else {
