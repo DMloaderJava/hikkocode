@@ -566,6 +566,11 @@ export function ChatPanel() {
       const totalTime = Date.now() - startTime;
       currentTask = completeAllSteps(currentTask, fileNames);
       currentTask.thinkingTime = totalTime;
+      // Attach diffs to task for display
+      if (fileDiffs.length > 0) {
+        (currentTask as any).diffs = fileDiffs;
+        (currentTask as any).diffSummary = diffSummary(fileDiffs);
+      }
       updateLastAssistantTask(activeProject.id, currentTask);
 
       // Final display
@@ -573,7 +578,8 @@ export function ChatPanel() {
       let finalDisplay = cleanText;
       if (files && files.length > 0) {
         const fileList = files.map((f) => `\`${f.path}\``).join(", ");
-        finalDisplay = `${cleanText || "Done!"}\n\n📁 **Generated files:** ${fileList}`;
+        const diffInfo = fileDiffs.length > 0 ? `\n\n📊 **Changes:** ${diffSummary(fileDiffs)}` : "";
+        finalDisplay = `${cleanText || "Done!"}\n\n📁 **Generated files:** ${fileList}${diffInfo}`;
       }
 
       const finalContent = finalDisplay || fullText || "Done!";
