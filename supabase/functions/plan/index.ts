@@ -39,6 +39,9 @@ Rules:
 - For new projects, new_files should include at minimum: index.html, styles.css, app.js
 - Keep analysis and approach concise (1-2 sentences each)
 - When existing code is provided, reference specific functions/elements you'll modify
+- Propose non-obvious, creative solutions. Avoid the most straightforward approach if a better alternative exists.
+- Consider using different technologies or design patterns than the most common ones.
+- Include an "alternatives" field with 1-2 alternative approaches the user might consider.
 
 Return ONLY the JSON object, nothing else.`;
 
