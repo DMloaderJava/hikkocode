@@ -1,11 +1,14 @@
 import { useApp } from "@/context/AppContext";
-import { RefreshCw, ExternalLink, Monitor, Smartphone, Tablet } from "lucide-react";
+import { Monitor } from "lucide-react";
 import { useMemo, useState } from "react";
 
-export function LivePreview() {
+interface LivePreviewProps {
+  device?: "desktop" | "tablet" | "mobile";
+}
+
+export function LivePreview({ device = "desktop" }: LivePreviewProps) {
   const { activeProject, isGenerating } = useApp();
   const [key, setKey] = useState(0);
-  const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const previewHtml = useMemo(() => {
     if (!activeProject || activeProject.files.length === 0) return null;
@@ -35,7 +38,8 @@ export function LivePreview() {
     return html;
   }, [activeProject]);
 
-  const deviceWidth = device === "mobile" ? "375px" : device === "tablet" ? "768px" : "100%";
+  const deviceWidth =
+    device === "mobile" ? "375px" : device === "tablet" ? "768px" : "100%";
 
   if (!activeProject || activeProject.files.length === 0) {
     return (
@@ -55,69 +59,8 @@ export function LivePreview() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Browser-like URL bar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card">
-        {/* Traffic lights */}
-        <div className="flex items-center gap-1.5 mr-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-destructive/40" />
-          <div className="w-2.5 h-2.5 rounded-full bg-accent/40" />
-          <div className="w-2.5 h-2.5 rounded-full bg-primary/20" />
-        </div>
-
-        {/* URL bar */}
-        <div className="flex-1 flex items-center bg-secondary rounded-lg px-3 py-1.5">
-          <span className="text-xs text-muted-foreground truncate">
-            {activeProject.name.toLowerCase().replace(/\s+/g, "-")}.laughable.app
-          </span>
-          {isGenerating && (
-            <span className="ml-auto text-[10px] text-accent animate-pulse">loading...</span>
-          )}
-        </div>
-
-        {/* Device toggles */}
-        <div className="flex items-center gap-0.5 bg-secondary rounded-lg p-0.5">
-          {([
-            { id: "desktop" as const, icon: Monitor },
-            { id: "tablet" as const, icon: Tablet },
-            { id: "mobile" as const, icon: Smartphone },
-          ]).map(d => (
-            <button
-              key={d.id}
-              onClick={() => setDevice(d.id)}
-              className={`p-1 rounded-md transition-colors ${
-                device === d.id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <d.icon className="w-3.5 h-3.5" />
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => setKey((k) => k + 1)}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Refresh"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-        <button
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title="Open in new tab"
-          onClick={() => {
-            if (previewHtml) {
-              const win = window.open();
-              if (win) { win.document.write(previewHtml); win.document.close(); }
-            }
-          }}
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Preview iframe */}
-      <div className="flex-1 flex items-start justify-center bg-secondary/30 overflow-auto p-0">
+      {/* Preview iframe — clean, no internal toolbar */}
+      <div className="flex-1 flex items-start justify-center bg-secondary/20 overflow-auto">
         <div
           className="h-full bg-white transition-all duration-300"
           style={{ width: deviceWidth, maxWidth: "100%" }}
