@@ -78,7 +78,7 @@ async function getPlan(messages: Array<{ role: string; content: string }>): Prom
           model: "google/gemini-2.5-flash",
           messages,
           max_tokens: 4096,
-          temperature: 0.3,
+          temperature: 0.9,
         }),
       });
 
