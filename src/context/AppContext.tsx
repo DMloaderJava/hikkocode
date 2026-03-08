@@ -9,11 +9,27 @@ export interface GeneratedFile {
   language: string;
 }
 
+export interface TaskStep {
+  id: string;
+  label: string;
+  status: "pending" | "in_progress" | "done";
+}
+
+export interface GenerationTask {
+  id: string;
+  title: string;
+  steps: TaskStep[];
+  filesChanged: string[];
+  toolCount: number;
+  timestamp: Date;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  task?: GenerationTask;
 }
 
 export interface VersionSnapshot {
