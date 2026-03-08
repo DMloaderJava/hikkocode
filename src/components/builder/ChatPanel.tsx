@@ -386,7 +386,7 @@ export function ChatPanel() {
           </div>
         ) : (
           <div className="p-4 space-y-4">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
               {activeProject.messages.map((msg) => (
                 <motion.div
                   key={msg.id}
