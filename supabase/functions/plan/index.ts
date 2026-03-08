@@ -39,6 +39,9 @@ Rules:
 - For new projects, new_files should include at minimum: index.html, styles.css, app.js
 - Keep analysis and approach concise (1-2 sentences each)
 - When existing code is provided, reference specific functions/elements you'll modify
+- Propose non-obvious, creative solutions. Avoid the most straightforward approach if a better alternative exists.
+- Consider using different technologies or design patterns than the most common ones.
+- Include an "alternatives" field with 1-2 alternative approaches the user might consider.
 
 Return ONLY the JSON object, nothing else.`;
 
@@ -75,7 +78,7 @@ async function getPlan(messages: Array<{ role: string; content: string }>): Prom
           model: "google/gemini-2.5-flash",
           messages,
           max_tokens: 4096,
-          temperature: 0.3,
+          temperature: 0.9,
         }),
       });
 
@@ -109,7 +112,7 @@ async function getPlan(messages: Array<{ role: string; content: string }>): Prom
           body: JSON.stringify({
             system_instruction: { parts: [{ text: systemInstruction }] },
             contents,
-            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+            generationConfig: { temperature: 0.9, maxOutputTokens: 4096 },
           }),
         }
       );
@@ -190,6 +193,7 @@ serve(async (req) => {
       new_files: (plan as any).new_files || [],
       plan: (plan as any).plan || [],
       technologies: (plan as any).technologies || [],
+      alternatives: (plan as any).alternatives || [],
     };
 
     return new Response(JSON.stringify(safePlan), {
