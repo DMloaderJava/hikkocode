@@ -516,11 +516,25 @@ export function ChatPanel() {
         }
       }
 
-      // Extract and set files
+      // Extract files and apply via sandbox
       const files = extractFiles(fullText);
       const fileNames = files ? files.map(f => f.path) : [];
+      let fileDiffs: FileDiff[] = [];
+
       if (files && files.length > 0) {
-        setFiles(activeProject.id, files, prompt.trim());
+        // Create sandbox from current files, compute diff, then commit
+        const oldFiles = activeProject.files;
+        const sandbox = createSandbox(oldFiles);
+        const newFiles = commitSandbox({ ...sandbox, working: files });
+
+        // Compute diff between old and new
+        fileDiffs = diffFiles(
+          oldFiles.map(f => ({ path: f.path, content: f.content })),
+          newFiles.map(f => ({ path: f.path, content: f.content }))
+        );
+
+        // Apply to project
+        setFiles(activeProject.id, newFiles, prompt.trim());
 
         // Update steps with actual file names
         const editableSteps = currentTask.steps.filter(s => 
@@ -536,7 +550,6 @@ export function ChatPanel() {
           }
         });
 
-        // Add extra steps for files beyond plan
         if (files.length > editableSteps.length) {
           for (let i = editableSteps.length; i < files.length; i++) {
             currentTask.steps.push({
