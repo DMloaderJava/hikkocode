@@ -181,9 +181,30 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
   const handleDisconnect = () => {
     setConnection(null);
     setPushSuccess(false);
+    setPrResult(null);
   };
 
-  const handleCopyClone = () => {
+  const handleCreatePR = async () => {
+    if (!connection || !activeProject?.files.length) return;
+    setCreatingPR(true);
+    setPrResult(null);
+    setError("");
+    try {
+      const data = await callGitHub("create_pr", {
+        owner: connection.owner,
+        repo: connection.repo,
+        baseBranch: connection.branch,
+        title: `AI changes – v${activeProject.version}`,
+        description: `Automated changes by hikkocode AI agent.\n\n**Project:** ${activeProject.name}\n**Version:** ${activeProject.version}\n**Files:** ${activeProject.files.length}`,
+        files: activeProject.files.map((f) => ({ path: f.path, content: f.content })),
+      });
+      setPrResult(data.pr);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create PR");
+    } finally {
+      setCreatingPR(false);
+    }
+  };
     if (!connection) return;
     navigator.clipboard.writeText(
       `git clone https://github.com/${connection.owner}/${connection.repo}.git`
