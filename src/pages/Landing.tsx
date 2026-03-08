@@ -236,6 +236,8 @@ export default function Landing() {
       <footer className="py-6 text-center text-xs text-muted-foreground">
         🤖 hikkocode — Build apps with AI
       </footer>
+
+      <ApiKeyDialog open={showApiKey} onClose={() => setShowApiKey(false)} />
     </div>
   );
 }
