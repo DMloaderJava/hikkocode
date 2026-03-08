@@ -167,6 +167,13 @@ export function ChatPanel() {
     };
   };
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  };
+
   const submitPrompt = async (prompt: string) => {
     if (!prompt.trim() || isGenerating || !activeProject) return;
 
