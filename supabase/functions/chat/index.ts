@@ -198,7 +198,7 @@ serve(async (req) => {
     }
 
     if (useGeminiFallback) {
-      response = await callGeminiFallbackStream(apiMessages);
+      response = await callGeminiFallbackStream(apiMessages, requestTemp, customApiKey || undefined);
       if (!response) {
         return new Response(
           JSON.stringify({ error: "All API keys exhausted. Please try again later." }),
