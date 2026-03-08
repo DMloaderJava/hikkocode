@@ -56,28 +56,84 @@ function generateTaskTitle(prompt: string): string {
   if (lower.includes("fix") || lower.includes("bug")) return "Fix reported issues";
   if (lower.includes("add") || lower.includes("create")) return "Implement new feature";
   if (lower.includes("style") || lower.includes("design") || lower.includes("ui")) return "Update UI design";
-  // Truncate prompt as title
+  if (lower.includes("change") || lower.includes("update") || lower.includes("modify")) return "Apply modifications";
   const words = prompt.trim().split(/\s+/).slice(0, 5).join(" ");
   return words.length > 40 ? words.slice(0, 40) + "…" : words;
 }
 
-function generateTaskSteps(prompt: string): TaskStep[] {
+function generateInitialSteps(prompt: string, hasExistingFiles: boolean): TaskStep[] {
   const lower = prompt.toLowerCase();
-  const steps: TaskStep[] = [
-    { id: "1", label: "Analyze requirements", status: "pending" },
-  ];
+  const steps: TaskStep[] = [];
 
+  // Step 1: Thinking
+  steps.push({
+    id: "think",
+    label: "Thinking",
+    status: "pending",
+    type: "think",
+    detail: "Analyzing your request...",
+  });
+
+  // Step 2: Read existing files (if project has files)
+  if (hasExistingFiles) {
+    steps.push({
+      id: "read",
+      label: "Reading project files",
+      status: "pending",
+      type: "read",
+      detail: "Understanding current codebase",
+    });
+  }
+
+  // Step 3: Plan
+  steps.push({
+    id: "plan",
+    label: "Creating action plan",
+    status: "pending",
+    type: "plan",
+    detail: "Determining what to build",
+  });
+
+  // Step 4+: Dynamic edit steps based on prompt
   if (lower.includes("fix") || lower.includes("bug") || lower.includes("error")) {
-    steps.push({ id: "2", label: "Identify root cause", status: "pending" });
-    steps.push({ id: "3", label: "Apply fix", status: "pending" });
-    steps.push({ id: "4", label: "Verify solution", status: "pending" });
+    steps.push({
+      id: "edit-fix",
+      label: "Applying fix",
+      status: "pending",
+      type: "edit",
+    });
+    steps.push({
+      id: "verify",
+      label: "Verifying solution",
+      status: "pending",
+      type: "verify",
+    });
   } else {
-    steps.push({ id: "2", label: "Generate component structure", status: "pending" });
-    steps.push({ id: "3", label: "Write implementation code", status: "pending" });
-    steps.push({ id: "4", label: "Apply styles and polish", status: "pending" });
+    steps.push({
+      id: "edit-html",
+      label: "Writing index.html",
+      status: "pending",
+      type: "edit",
+      detail: "/index.html",
+    });
+    steps.push({
+      id: "edit-css",
+      label: "Writing styles.css",
+      status: "pending",
+      type: "edit",
+      detail: "/styles.css",
+    });
+    steps.push({
+      id: "edit-js",
+      label: "Writing app.js",
+      status: "pending",
+      type: "edit",
+      detail: "/app.js",
+    });
   }
 
   return steps;
+}
 }
 
 export function ChatPanel() {
