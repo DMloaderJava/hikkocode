@@ -23,7 +23,11 @@ import {
   FilePlus,
   FileEdit,
   Eye,
+  GitCompare,
+  Plus,
+  Minus,
 } from "lucide-react";
+import type { FileDiff, DiffLine } from "@/lib/diff";
 
 export interface TaskStep {
   id: string;
@@ -50,6 +54,8 @@ interface TaskCardProps {
     new_files?: string[];
     planSteps?: string[];
   };
+  diffs?: FileDiff[];
+  diffSummaryText?: string;
   onPreviewClick?: () => void;
 }
 
