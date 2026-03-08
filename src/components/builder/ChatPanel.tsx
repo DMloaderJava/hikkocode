@@ -8,6 +8,7 @@ import {
   Lightbulb,
   LayoutGrid,
   Square,
+  StopCircle,
 } from "lucide-react";
 import { useApp, ChatMessage, GeneratedFile, GenerationTask, TaskStep } from "@/context/AppContext";
 import { useLocation } from "react-router-dom";
