@@ -13,6 +13,9 @@ export interface TaskStep {
   id: string;
   label: string;
   status: "pending" | "in_progress" | "done";
+  type?: "think" | "read" | "plan" | "edit" | "verify" | "default";
+  detail?: string; // e.g. filename being edited
+  duration?: number; // ms elapsed
 }
 
 export interface GenerationTask {
@@ -22,6 +25,7 @@ export interface GenerationTask {
   filesChanged: string[];
   toolCount: number;
   timestamp: Date;
+  thinkingTime?: number; // total ms for thinking phase
 }
 
 export interface ChatMessage {
