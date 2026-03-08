@@ -3,6 +3,7 @@ import { ChatPanel } from "@/components/builder/ChatPanel";
 import { FileExplorer } from "@/components/builder/FileExplorer";
 import { CodeViewer } from "@/components/builder/CodeViewer";
 import { LivePreview } from "@/components/builder/LivePreview";
+import { PublishDialog } from "@/components/builder/PublishDialog";
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import {
@@ -30,6 +31,7 @@ export default function Builder() {
   const [rightView, setRightView] = useState<RightView>("preview");
   const [showSidebar, setShowSidebar] = useState(false);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [showPublish, setShowPublish] = useState(false);
 
   const effectiveView = activeFile ? "code" : rightView;
 
@@ -165,7 +167,10 @@ export default function Builder() {
             <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent text-accent text-xs font-medium hover:bg-accent/10 transition-colors">
               Upgrade
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity">
+            <button
+              onClick={() => setShowPublish(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity"
+            >
               Publish
             </button>
           </div>
@@ -195,6 +200,9 @@ export default function Builder() {
           </div>
         </div>
       </div>
+
+      {/* Publish Dialog */}
+      <PublishDialog open={showPublish} onClose={() => setShowPublish(false)} />
     </div>
   );
 }

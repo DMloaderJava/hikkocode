@@ -9,11 +9,27 @@ export interface GeneratedFile {
   language: string;
 }
 
+export interface TaskStep {
+  id: string;
+  label: string;
+  status: "pending" | "in_progress" | "done";
+}
+
+export interface GenerationTask {
+  id: string;
+  title: string;
+  steps: TaskStep[];
+  filesChanged: string[];
+  toolCount: number;
+  timestamp: Date;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  task?: GenerationTask;
 }
 
 export interface VersionSnapshot {
@@ -55,6 +71,7 @@ interface AppContextType extends AppState {
   setLoadingMessage: (msg: string) => void;
   restoreVersion: (projectId: string, versionId: string) => void;
   updateLastAssistantMessage: (projectId: string, content: string) => void;
+  updateLastAssistantTask: (projectId: string, task: GenerationTask) => void;
   signOut: () => Promise<void>;
   loadProjects: () => Promise<void>;
 }
@@ -266,6 +283,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateLastAssistantTask = useCallback((projectId: string, task: GenerationTask) => {
+    setState(prev => {
+      const updateMessages = (messages: ChatMessage[]) => {
+        const lastIdx = messages.length - 1;
+        if (lastIdx >= 0 && messages[lastIdx].role === "assistant") {
+          return messages.map((m, i) => i === lastIdx ? { ...m, task } : m);
+        }
+        return messages;
+      };
+
+      const projects = prev.projects.map(p =>
+        p.id === projectId ? { ...p, messages: updateMessages(p.messages) } : p
+      );
+      const activeProject = prev.activeProject?.id === projectId
+        ? { ...prev.activeProject, messages: updateMessages(prev.activeProject.messages) }
+        : prev.activeProject;
+      return { ...prev, projects, activeProject };
+    });
+  }, []);
+
   const setFiles = useCallback((projectId: string, files: GeneratedFile[], prompt?: string) => {
     // Save files to DB
     if (state.user) {
@@ -368,6 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoadingMessage,
       restoreVersion,
       updateLastAssistantMessage,
+      updateLastAssistantTask,
       signOut,
       loadProjects,
     }}>
