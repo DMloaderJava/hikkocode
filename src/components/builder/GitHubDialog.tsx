@@ -55,6 +55,13 @@ interface RepoConnection {
 
 type Tab = "connect" | "create";
 
+interface PRResult {
+  number: number;
+  html_url: string;
+  title: string;
+  branch: string;
+}
+
 async function callGitHub(action: string, params: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke("github", {
     body: { action, ...params },
@@ -81,6 +88,8 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
   const [newRepoDesc, setNewRepoDesc] = useState("");
   const [newRepoPrivate, setNewRepoPrivate] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [creatingPR, setCreatingPR] = useState(false);
+  const [prResult, setPrResult] = useState<PRResult | null>(null);
 
   // Load GitHub user + repos on open
   useEffect(() => {
@@ -172,6 +181,29 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
   const handleDisconnect = () => {
     setConnection(null);
     setPushSuccess(false);
+    setPrResult(null);
+  };
+
+  const handleCreatePR = async () => {
+    if (!connection || !activeProject?.files.length) return;
+    setCreatingPR(true);
+    setPrResult(null);
+    setError("");
+    try {
+      const data = await callGitHub("create_pr", {
+        owner: connection.owner,
+        repo: connection.repo,
+        baseBranch: connection.branch,
+        title: `AI changes – v${activeProject.version}`,
+        description: `Automated changes by hikkocode AI agent.\n\n**Project:** ${activeProject.name}\n**Version:** ${activeProject.version}\n**Files:** ${activeProject.files.length}`,
+        files: activeProject.files.map((f) => ({ path: f.path, content: f.content })),
+      });
+      setPrResult(data.pr);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create PR");
+    } finally {
+      setCreatingPR(false);
+    }
   };
 
   const handleCopyClone = () => {
@@ -264,35 +296,74 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
               </div>
             </div>
 
-            {/* Push + Disconnect */}
-            <div className="flex items-center gap-2">
+            {/* PR Result */}
+            {prResult && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <GitBranch className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-400">Pull Request Created</span>
+                </div>
+                <a
+                  href={prResult.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  #{prResult.number} — {prResult.title}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <p className="text-[10px] text-muted-foreground mt-1">Branch: {prResult.branch}</p>
+              </div>
+            )}
+
+            {/* Push + PR + Disconnect */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePushFiles}
+                  disabled={pushing || !activeProject?.files.length}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  {pushing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Pushing...
+                    </>
+                  ) : pushSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      Pushed!
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      Push to {connection.branch}
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/30 text-destructive text-xs font-medium hover:bg-destructive/10 transition-colors"
+                >
+                  <Unlink className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <button
-                onClick={handlePushFiles}
-                disabled={pushing || !activeProject?.files.length}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                onClick={handleCreatePR}
+                disabled={creatingPR || !activeProject?.files.length}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-foreground text-xs font-medium hover:bg-secondary transition-colors disabled:opacity-40"
               >
-                {pushing ? (
+                {creatingPR ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Pushing...
-                  </>
-                ) : pushSuccess ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    Pushed!
+                    Creating PR...
                   </>
                 ) : (
                   <>
-                    <Upload className="w-3.5 h-3.5" />
-                    Push Files ({activeProject?.files.length || 0})
+                    <GitBranch className="w-3.5 h-3.5" />
+                    Create Pull Request
                   </>
                 )}
-              </button>
-              <button
-                onClick={handleDisconnect}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/30 text-destructive text-xs font-medium hover:bg-destructive/10 transition-colors"
-              >
-                <Unlink className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

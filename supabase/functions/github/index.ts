@@ -8,7 +8,72 @@ const corsHeaders = {
 
 const GITHUB_API = "https://api.github.com";
 
-Deno.serve(async (req) => {
+/** Push files to a branch and return the commit SHA */
+async function pushFilesToBranch(
+  ghHeaders: Record<string, string>,
+  owner: string,
+  repo: string,
+  branch: string,
+  files: Array<{ path: string; content: string }>,
+  message: string
+): Promise<string> {
+  // Get latest commit SHA
+  const refResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${branch}`, { headers: ghHeaders });
+  const refData = await refResp.json();
+  if (!refResp.ok) throw new Error(`Failed to get ref [${refResp.status}]: ${JSON.stringify(refData)}`);
+  const latestCommitSha = refData.object.sha;
+
+  // Get base tree
+  const commitResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/commits/${latestCommitSha}`, { headers: ghHeaders });
+  const commitData = await commitResp.json();
+  if (!commitResp.ok) throw new Error(`Failed to get commit [${commitResp.status}]`);
+  const baseTreeSha = commitData.tree.sha;
+
+  // Create blobs
+  const treeItems = [];
+  for (const file of files) {
+    const blobResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/blobs`, {
+      method: "POST",
+      headers: ghHeaders,
+      body: JSON.stringify({ content: file.content, encoding: "utf-8" }),
+    });
+    const blobData = await blobResp.json();
+    if (!blobResp.ok) throw new Error(`Failed to create blob [${blobResp.status}]`);
+    treeItems.push({ path: file.path, mode: "100644", type: "blob", sha: blobData.sha });
+  }
+
+  // Create tree
+  const treeResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/trees`, {
+    method: "POST",
+    headers: ghHeaders,
+    body: JSON.stringify({ base_tree: baseTreeSha, tree: treeItems }),
+  });
+  const treeData = await treeResp.json();
+  if (!treeResp.ok) throw new Error(`Failed to create tree [${treeResp.status}]`);
+
+  // Create commit
+  const newCommitResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/commits`, {
+    method: "POST",
+    headers: ghHeaders,
+    body: JSON.stringify({ message, tree: treeData.sha, parents: [latestCommitSha] }),
+  });
+  const newCommitData = await newCommitResp.json();
+  if (!newCommitResp.ok) throw new Error(`Failed to create commit [${newCommitResp.status}]`);
+
+  // Update ref
+  const updateRefResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
+    method: "PATCH",
+    headers: ghHeaders,
+    body: JSON.stringify({ sha: newCommitData.sha }),
+  });
+  if (!updateRefResp.ok) {
+    const errBody = await updateRefResp.json();
+    throw new Error(`Failed to update ref [${updateRefResp.status}]: ${JSON.stringify(errBody)}`);
+  }
+  await updateRefResp.json();
+
+  return newCommitData.sha;
+}
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -107,79 +172,94 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Push files to a repo
+      // Push files to a repo (on existing branch)
       case "push_files": {
         const { owner, repo, files, message, branch } = params;
         if (!owner || !repo || !files?.length) throw new Error("owner, repo, and files are required");
 
         const targetBranch = branch || "main";
+        const commitSha = await pushFilesToBranch(ghHeaders, owner, repo, targetBranch, files, message || `Update from hikkocode`);
+        return json({ success: true, commit_sha: commitSha });
+      }
 
-        // Get latest commit SHA
-        const refResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${targetBranch}`, { headers: ghHeaders });
+      // Create a new branch from base
+      case "create_branch": {
+        const { owner, repo, branch, baseBranch } = params;
+        if (!owner || !repo || !branch) throw new Error("owner, repo, and branch are required");
+
+        const base = baseBranch || "main";
+
+        // Get base branch SHA
+        const refResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${base}`, { headers: ghHeaders });
         const refData = await refResp.json();
-        if (!refResp.ok) throw new Error(`Failed to get ref [${refResp.status}]: ${JSON.stringify(refData)}`);
-        const latestCommitSha = refData.object.sha;
+        if (!refResp.ok) throw new Error(`Failed to get base ref [${refResp.status}]: ${JSON.stringify(refData)}`);
+        const baseSha = refData.object.sha;
 
-        // Get the tree of the latest commit
-        const commitResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/commits/${latestCommitSha}`, { headers: ghHeaders });
-        const commitData = await commitResp.json();
-        if (!commitResp.ok) throw new Error(`Failed to get commit [${commitResp.status}]`);
-        const baseTreeSha = commitData.tree.sha;
-
-        // Create blobs for each file
-        const treeItems = [];
-        for (const file of files) {
-          const blobResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/blobs`, {
-            method: "POST",
-            headers: ghHeaders,
-            body: JSON.stringify({ content: file.content, encoding: "utf-8" }),
-          });
-          const blobData = await blobResp.json();
-          if (!blobResp.ok) throw new Error(`Failed to create blob [${blobResp.status}]`);
-
-          treeItems.push({
-            path: file.path,
-            mode: "100644",
-            type: "blob",
-            sha: blobData.sha,
-          });
-        }
-
-        // Create tree
-        const treeResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/trees`, {
+        // Create new ref
+        const createResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs`, {
           method: "POST",
           headers: ghHeaders,
-          body: JSON.stringify({ base_tree: baseTreeSha, tree: treeItems }),
+          body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }),
         });
-        const treeData = await treeResp.json();
-        if (!treeResp.ok) throw new Error(`Failed to create tree [${treeResp.status}]`);
+        const createData = await createResp.json();
+        if (!createResp.ok) throw new Error(`Failed to create branch [${createResp.status}]: ${JSON.stringify(createData)}`);
 
-        // Create commit
-        const newCommitResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/commits`, {
+        return json({ success: true, branch, sha: baseSha });
+      }
+
+      // Push files to a branch and create a Pull Request
+      case "create_pr": {
+        const { owner, repo, files, title, description, baseBranch, branchName } = params;
+        if (!owner || !repo || !files?.length || !title) throw new Error("owner, repo, files, and title are required");
+
+        const base = baseBranch || "main";
+        const prBranch = branchName || `ai-change-${Date.now()}`;
+
+        // 1. Get base branch SHA
+        const refResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${base}`, { headers: ghHeaders });
+        const refData = await refResp.json();
+        if (!refResp.ok) throw new Error(`Failed to get base ref [${refResp.status}]: ${JSON.stringify(refData)}`);
+        const baseSha = refData.object.sha;
+
+        // 2. Create new branch
+        const createBranchResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs`, {
+          method: "POST",
+          headers: ghHeaders,
+          body: JSON.stringify({ ref: `refs/heads/${prBranch}`, sha: baseSha }),
+        });
+        if (!createBranchResp.ok) {
+          const err = await createBranchResp.json();
+          throw new Error(`Failed to create branch [${createBranchResp.status}]: ${JSON.stringify(err)}`);
+        }
+        await createBranchResp.json();
+
+        // 3. Push files to the new branch
+        const commitSha = await pushFilesToBranch(ghHeaders, owner, repo, prBranch, files, title);
+
+        // 4. Create Pull Request
+        const prResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls`, {
           method: "POST",
           headers: ghHeaders,
           body: JSON.stringify({
-            message: message || "Update from Laughable",
-            tree: treeData.sha,
-            parents: [latestCommitSha],
+            title,
+            body: description || `Automated changes by hikkocode AI agent.\n\nCommit: ${commitSha}`,
+            head: prBranch,
+            base,
           }),
         });
-        const newCommitData = await newCommitResp.json();
-        if (!newCommitResp.ok) throw new Error(`Failed to create commit [${newCommitResp.status}]`);
+        const prData = await prResp.json();
+        if (!prResp.ok) throw new Error(`Failed to create PR [${prResp.status}]: ${JSON.stringify(prData)}`);
 
-        // Update ref
-        const updateRefResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs/heads/${targetBranch}`, {
-          method: "PATCH",
-          headers: ghHeaders,
-          body: JSON.stringify({ sha: newCommitData.sha }),
+        return json({
+          success: true,
+          pr: {
+            number: prData.number,
+            html_url: prData.html_url,
+            title: prData.title,
+            branch: prBranch,
+            commit_sha: commitSha,
+          },
         });
-        if (!updateRefResp.ok) {
-          const errBody = await updateRefResp.json();
-          throw new Error(`Failed to update ref [${updateRefResp.status}]: ${JSON.stringify(errBody)}`);
-        }
-        await updateRefResp.json();
-
-        return json({ success: true, commit_sha: newCommitData.sha });
       }
 
       default:
