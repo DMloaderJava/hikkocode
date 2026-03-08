@@ -18,6 +18,7 @@ export interface AgentPlan {
   new_files: string[];
   plan: string[];
   technologies?: string[];
+  alternatives?: string[];
 }
 
 export type AgentPhase = 
