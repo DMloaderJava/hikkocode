@@ -28,7 +28,7 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || "my-app";
 
-  const publishedUrl = `https://${projectSlug}.laughable.app`;
+  const publishedUrl = `https://${projectSlug}.hikkocode.app`;
 
   const handlePublish = async () => {
     setStage("building");

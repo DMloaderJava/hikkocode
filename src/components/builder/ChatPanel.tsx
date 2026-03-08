@@ -1,4 +1,5 @@
 import { useState, FormEvent, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUp,
@@ -131,7 +132,7 @@ export function ChatPanel() {
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-sm">
             <div className="w-10 h-10 rounded-xl gradient-lovable mx-auto mb-4 opacity-50" />
-            <p className="text-sm font-medium text-foreground mb-1">Welcome to Laughable</p>
+            <p className="text-sm font-medium text-foreground mb-1">Welcome to hikkocode</p>
             <p className="text-xs text-muted-foreground">
               Create a new project or select one from the sidebar to get started
             </p>
@@ -389,7 +390,7 @@ export function ChatPanel() {
             <div className="w-8 h-8 rounded-lg gradient-lovable mb-3 opacity-40" />
             <p className="text-sm text-foreground font-medium mb-1">Start building</p>
             <p className="text-xs text-muted-foreground max-w-[240px]">
-              Describe the app you want to create and Laughable will build it for you
+              Describe the app you want to create and hikkocode will build it for you
             </p>
           </div>
         ) : (
@@ -465,7 +466,7 @@ export function ChatPanel() {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Laughable..."
+              placeholder="Ask hikkocode..."
               className="w-full bg-transparent px-3.5 pt-3 pb-1 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none min-h-[40px] max-h-[200px]"
               disabled={isGenerating}
               rows={1}
@@ -480,6 +481,9 @@ export function ChatPanel() {
               <div className="flex items-center gap-0.5">
                 <button
                   type="button"
+                  onClick={() => {
+                    setInput((prev) => prev + "\nPlease provide a visual/UI-focused update. ");
+                  }}
                   className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                 >
                   <Square className="w-3 h-3" />
@@ -487,13 +491,49 @@ export function ChatPanel() {
                 </button>
               </div>
               <div className="flex items-center gap-0.5">
-                <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Attach image">
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info("Image attachments coming soon!");
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  title="Attach image"
+                >
                   <Image className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Suggestions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const suggestions = [
+                      "Add a dark mode toggle",
+                      "Make it responsive for mobile",
+                      "Add form validation",
+                      "Improve the loading states",
+                      "Add animations and transitions",
+                    ];
+                    const random = suggestions[Math.floor(Math.random() * suggestions.length)];
+                    setInput(random);
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  title="Suggestions"
+                >
                   <Lightbulb className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Templates">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const templates = [
+                      "Build a landing page with hero section, features grid, and footer",
+                      "Create a todo app with add, complete, and delete functionality",
+                      "Make a dashboard with sidebar, stats cards, and a chart",
+                      "Build a login/signup form with validation",
+                    ];
+                    const random = templates[Math.floor(Math.random() * templates.length)];
+                    setInput(random);
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  title="Templates"
+                >
                   <LayoutGrid className="w-3.5 h-3.5" />
                 </button>
                 {isGenerating ? (

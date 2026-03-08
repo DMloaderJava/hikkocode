@@ -86,7 +86,7 @@ export function ProjectSidebar({ onCollapse }: { onCollapse?: () => void }) {
         <div className="h-11 flex items-center justify-between px-3 border-b border-border">
           <button onClick={() => navigate("/")} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-5 h-5 rounded gradient-lovable" />
-            <span className="text-sm font-semibold text-foreground">Laughable</span>
+            <span className="text-sm font-semibold text-foreground">hikkocode</span>
           </button>
           <button
             onClick={onCollapse}
