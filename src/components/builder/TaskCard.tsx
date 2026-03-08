@@ -33,11 +33,6 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
   filesChanged,
   onPreviewClick,
 }, ref) {
-  toolCount,
-  timestamp,
-  filesChanged,
-  onPreviewClick,
-}: TaskCardProps) {
   const [activeTab, setActiveTab] = useState<"details" | "preview">("preview");
   const [expanded, setExpanded] = useState(false);
 
