@@ -105,8 +105,8 @@ function getGeminiKeys(): string[] {
   return raw.split(",").map((k) => k.trim()).filter(Boolean);
 }
 
-async function callGeminiFallback(messages: Array<{ role: string; content: string }>, stream: boolean) {
-  const keys = getGeminiKeys();
+async function callGeminiFallback(messages: Array<{ role: string; content: string }>, stream: boolean, customKey?: string) {
+  const keys = customKey ? [customKey, ...getGeminiKeys()] : getGeminiKeys();
   if (keys.length === 0) return null;
 
   const systemInstruction = messages.find((m) => m.role === "system")?.content || "";
@@ -149,7 +149,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, existingFiles, stream } = await req.json();
+    const { prompt, existingFiles, stream, customApiKey } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const messages = buildMessages(prompt, existingFiles);
 
@@ -191,7 +191,7 @@ serve(async (req) => {
       }
 
       if (useGeminiFallback) {
-        response = await callGeminiFallback(messages, true);
+        response = await callGeminiFallback(messages, true, customApiKey || undefined);
         if (!response) {
           return new Response(
             JSON.stringify({ error: "All API keys exhausted. Please try again later." }),
@@ -297,7 +297,7 @@ serve(async (req) => {
     }
 
     if (useGeminiFallback) {
-      response = await callGeminiFallback(messages, false);
+      response = await callGeminiFallback(messages, false, customApiKey || undefined);
       if (!response) {
         return new Response(
           JSON.stringify({ error: "All API keys exhausted. Please try again later." }),

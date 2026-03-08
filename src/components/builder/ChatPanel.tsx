@@ -6,7 +6,7 @@ import {
   Bot,
   Loader2,
   Image,
-  Lightbulb,
+  Key,
   LayoutGrid,
   Square,
   StopCircle,
@@ -17,6 +17,7 @@ import { diffFiles, diffSummary, type FileDiff } from "@/lib/diff";
 import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { TaskCard } from "./TaskCard";
+import { ApiKeyDialog, getStoredApiKey } from "@/components/ApiKeyDialog";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PLAN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plan`;
@@ -404,7 +405,7 @@ export function ChatPanel() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, temperature: 0.3, customApiKey: getStoredApiKey() }),
         signal: controller.signal,
       });
 
@@ -729,23 +730,22 @@ export function ChatPanel() {
                 >
                   <Image className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const suggestions = [
-                      "Add a dark mode toggle",
-                      "Make it responsive for mobile",
-                      "Add form validation",
-                      "Improve the loading states",
-                      "Add animations and transitions",
-                    ];
-                    setInput(suggestions[Math.floor(Math.random() * suggestions.length)]);
-                  }}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  title="Suggestions"
-                >
-                  <Lightbulb className="w-3.5 h-3.5" />
-                </button>
+                {(() => {
+                  const [showKey, setShowKey] = useState(false);
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(true)}
+                        className={`p-1.5 rounded-md transition-colors ${getStoredApiKey() ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-foreground'} hover:bg-secondary`}
+                        title="API Key"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                      </button>
+                      <ApiKeyDialog open={showKey} onClose={() => setShowKey(false)} />
+                    </>
+                  );
+                })()}
                 <button
                   type="button"
                   onClick={() => {

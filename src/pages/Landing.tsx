@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
-import { ArrowUp, Plus, MessageCircle, Lightbulb, FolderOpen, Star, Clock, ArrowRight } from "lucide-react";
+import { ArrowUp, Plus, MessageCircle, Key, FolderOpen, Star, Clock, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, FormEvent } from "react";
 import { useApp } from "@/context/AppContext";
+import { ApiKeyDialog } from "@/components/ApiKeyDialog";
 
 function ProjectCard({ project, onClick }: { project: any; onClick: () => void }) {
   const timeAgo = (date: Date) => {
@@ -56,6 +57,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user, projects, createProject, setActiveProject } = useApp();
   const [prompt, setPrompt] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -166,8 +168,8 @@ export default function Landing() {
                 <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <MessageCircle className="w-4 h-4" />
                 </button>
-                <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-                  <Lightbulb className="w-4 h-4" />
+                <button type="button" onClick={() => setShowApiKey(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="API Key">
+                  <Key className="w-4 h-4" />
                 </button>
               </div>
               <button
@@ -234,6 +236,8 @@ export default function Landing() {
       <footer className="py-6 text-center text-xs text-muted-foreground">
         🤖 hikkocode — Build apps with AI
       </footer>
+
+      <ApiKeyDialog open={showApiKey} onClose={() => setShowApiKey(false)} />
     </div>
   );
 }
