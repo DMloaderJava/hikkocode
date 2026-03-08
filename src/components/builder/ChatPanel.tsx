@@ -246,8 +246,9 @@ export function ChatPanel() {
     }
   };
 
-  const submitPrompt = async (prompt: string) => {
-    if (!prompt.trim() || isGenerating || !activeProject) return;
+  const submitPrompt = async (initialPrompt: string) => {
+    if (!initialPrompt.trim() || isGenerating || !activeProject) return;
+    let prompt = initialPrompt;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
