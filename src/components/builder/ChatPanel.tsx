@@ -480,6 +480,9 @@ export function ChatPanel() {
               <div className="flex items-center gap-0.5">
                 <button
                   type="button"
+                  onClick={() => {
+                    setInput((prev) => prev + "\nPlease provide a visual/UI-focused update. ");
+                  }}
                   className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                 >
                   <Square className="w-3 h-3" />
@@ -487,13 +490,49 @@ export function ChatPanel() {
                 </button>
               </div>
               <div className="flex items-center gap-0.5">
-                <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Attach image">
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info("Image attachments coming soon!");
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  title="Attach image"
+                >
                   <Image className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Suggestions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const suggestions = [
+                      "Add a dark mode toggle",
+                      "Make it responsive for mobile",
+                      "Add form validation",
+                      "Improve the loading states",
+                      "Add animations and transitions",
+                    ];
+                    const random = suggestions[Math.floor(Math.random() * suggestions.length)];
+                    setInput(random);
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  title="Suggestions"
+                >
                   <Lightbulb className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Templates">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const templates = [
+                      "Build a landing page with hero section, features grid, and footer",
+                      "Create a todo app with add, complete, and delete functionality",
+                      "Make a dashboard with sidebar, stats cards, and a chart",
+                      "Build a login/signup form with validation",
+                    ];
+                    const random = templates[Math.floor(Math.random() * templates.length)];
+                    setInput(random);
+                  }}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  title="Templates"
+                >
                   <LayoutGrid className="w-3.5 h-3.5" />
                 </button>
                 {isGenerating ? (

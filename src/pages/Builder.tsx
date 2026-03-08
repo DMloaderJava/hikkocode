@@ -8,8 +8,9 @@ import { BuildLogs } from "@/components/builder/BuildLogs";
 import { VersionHistory } from "@/components/builder/VersionHistory";
 import { GitHubDialog } from "@/components/builder/GitHubDialog";
 import { useApp } from "@/context/AppContext";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 import {
   Eye,
   Code,
@@ -26,19 +27,66 @@ import {
   Slash,
   Github,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type RightView = "preview" | "code" | "terminal" | "history";
 
 export default function Builder() {
-  const { activeFile, activeProject, setActiveFile, isGenerating } = useApp();
+  const { activeFile, activeProject, setActiveFile, isGenerating, projects, setActiveProject } = useApp();
   const [rightView, setRightView] = useState<RightView>("preview");
   const [showSidebar, setShowSidebar] = useState(false);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [showPublish, setShowPublish] = useState(false);
   const [showGitHub, setShowGitHub] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
   const isMobile = useIsMobile();
 
   const effectiveView = activeFile ? "code" : rightView;
+
+  const handleRefresh = useCallback(() => {
+    setPreviewKey((k) => k + 1);
+    toast.success("Preview refreshed");
+  }, []);
+
+  const handleOpenExternal = useCallback(() => {
+    if (!activeProject || activeProject.files.length === 0) {
+      toast.error("No files to preview");
+      return;
+    }
+    const htmlFile = activeProject.files.find((f) => f.language === "html");
+    if (htmlFile) {
+      const blob = new Blob([htmlFile.content], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } else {
+      toast.error("No HTML file found");
+    }
+  }, [activeProject]);
+
+  const handleShare = useCallback(async () => {
+    const projectName = activeProject?.name || "hikkocode project";
+    const shareData = {
+      title: projectName,
+      text: `Check out "${projectName}" — built with hikkocode`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User cancelled
+      }
+    } else {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard");
+    }
+  }, [activeProject]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
@@ -70,13 +118,33 @@ export default function Builder() {
               <PanelLeft className="w-4 h-4" />
             </button>
             <div className="w-px h-5 bg-border mx-0.5 hidden sm:block" />
-            <button className="hidden sm:flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-secondary transition-colors">
-              <div className="w-5 h-5 rounded gradient-lovable flex-shrink-0" />
-              <span className="text-sm font-medium text-foreground truncate max-w-[140px]">
-                {activeProject?.name || "Laughable"}
-              </span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-            </button>
+
+            {/* Project switcher dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="hidden sm:flex items-center gap-1.5 px-1.5 py-1 rounded-md hover:bg-secondary transition-colors">
+                  <div className="w-5 h-5 rounded gradient-lovable flex-shrink-0" />
+                  <span className="text-sm font-medium text-foreground truncate max-w-[140px]">
+                    {activeProject?.name || "hikkocode"}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {projects.map((project) => (
+                  <DropdownMenuItem
+                    key={project.id}
+                    onClick={() => setActiveProject(project)}
+                    className={activeProject?.id === project.id ? "bg-secondary" : ""}
+                  >
+                    <span className="truncate">{project.name}</span>
+                  </DropdownMenuItem>
+                ))}
+                {projects.length === 0 && (
+                  <DropdownMenuItem disabled>No projects</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Center: View tabs */}
@@ -153,10 +221,18 @@ export default function Builder() {
               <Slash className="w-3 h-3 text-muted-foreground/50" />
               <span className="text-xs text-muted-foreground/60 select-none">/</span>
             </div>
-            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Refresh">
+            <button
+              onClick={handleRefresh}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="Refresh preview"
+            >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
-            <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="Open in new tab">
+            <button
+              onClick={handleOpenExternal}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="Open in new tab"
+            >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -171,7 +247,10 @@ export default function Builder() {
               <Github className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">GitHub</span>
             </button>
-            <button className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <button
+              onClick={handleShare}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
               <Share2 className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Share</span>
             </button>
@@ -191,7 +270,7 @@ export default function Builder() {
             <div className="flex-1 flex flex-col min-w-0">
               {effectiveView === "preview" ? (
                 <div className="flex-1 min-w-0 bg-secondary/20">
-                  <LivePreview device={device} />
+                  <LivePreview device={device} refreshKey={previewKey} />
                 </div>
               ) : effectiveView === "code" ? (
                 <div className="flex-1 flex min-w-0">
@@ -229,7 +308,7 @@ export default function Builder() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0 bg-secondary/20">
-                  {effectiveView === "preview" && <LivePreview device={device} />}
+                  {effectiveView === "preview" && <LivePreview device={device} refreshKey={previewKey} />}
                   {effectiveView === "code" && <CodeViewer />}
                   {effectiveView === "terminal" && <BuildLogs />}
                   {effectiveView === "history" && <VersionHistory />}

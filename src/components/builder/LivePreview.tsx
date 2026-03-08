@@ -67,7 +67,7 @@ export function LivePreview({ device = "desktop", refreshKey = 0 }: LivePreviewP
         >
           {previewHtml && (
             <iframe
-              key={key}
+              key={refreshKey}
               srcDoc={previewHtml}
               className="w-full h-full border-0"
               title="App Preview"

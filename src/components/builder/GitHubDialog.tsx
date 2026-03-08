@@ -393,7 +393,7 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
                   <input
                     value={newRepoDesc}
                     onChange={(e) => setNewRepoDesc(e.target.value)}
-                    placeholder="Built with Laughable"
+                    placeholder="Built with hikkocode"
                     className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
