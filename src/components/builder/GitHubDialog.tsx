@@ -55,6 +55,13 @@ interface RepoConnection {
 
 type Tab = "connect" | "create";
 
+interface PRResult {
+  number: number;
+  html_url: string;
+  title: string;
+  branch: string;
+}
+
 async function callGitHub(action: string, params: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke("github", {
     body: { action, ...params },
