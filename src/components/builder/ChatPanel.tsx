@@ -94,6 +94,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const location = useLocation();
   const initialPromptHandled = useRef(false);
 
