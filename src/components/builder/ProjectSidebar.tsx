@@ -8,7 +8,18 @@ export function ProjectSidebar({ onCollapse }: { onCollapse?: () => void }) {
   const { projects, activeProject, setActiveProject, createProject, user, signOut } = useApp();
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDark]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
