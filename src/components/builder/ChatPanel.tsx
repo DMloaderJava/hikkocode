@@ -254,11 +254,16 @@ export function ChatPanel() {
 
     const abortableSleep = (ms: number) =>
       new Promise<void>((resolve, reject) => {
+        if (controller.signal.aborted) {
+          reject(new DOMException("Aborted", "AbortError"));
+          return;
+        }
         const timer = setTimeout(resolve, ms);
-        controller.signal.addEventListener("abort", () => {
+        const onAbort = () => {
           clearTimeout(timer);
           reject(new DOMException("Aborted", "AbortError"));
-        });
+        };
+        controller.signal.addEventListener("abort", onAbort, { once: true });
       });
 
     try {
