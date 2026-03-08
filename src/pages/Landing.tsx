@@ -88,7 +88,7 @@ export default function Landing() {
       <nav className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg gradient-lovable" />
-          <span className="font-semibold text-lg text-foreground">Laughable</span>
+          <span className="font-semibold text-lg text-foreground">hikkocode</span>
         </div>
         <div className="flex items-center gap-3">
           {user ? (
@@ -127,7 +127,7 @@ export default function Landing() {
         >
           <h1 className="text-4xl md:text-5xl font-semibold mb-3 text-foreground leading-tight">
             Build something<br />
-            <span className="gradient-lovable-text">Laughable</span>
+            <span className="gradient-lovable-text">hikkocode</span>
           </h1>
           <p className="text-muted-foreground text-base mb-10">
             Create apps and websites by chatting with AI
@@ -148,7 +148,7 @@ export default function Landing() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask Laughable to build your app..."
+              placeholder="Ask hikkocode to build your app..."
               className="w-full bg-transparent text-foreground placeholder:text-muted-foreground text-sm resize-none outline-none min-h-[80px] mb-3"
               rows={3}
               onKeyDown={(e) => {
@@ -239,7 +239,7 @@ export default function Landing() {
       )}
 
       <footer className="py-6 text-center text-xs text-muted-foreground">
-        🤖 Laughable AI — A parody for educational purposes
+        🤖 hikkocode — Build apps with AI
       </footer>
     </div>
   );
