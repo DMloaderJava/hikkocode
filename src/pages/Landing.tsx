@@ -57,6 +57,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user, projects, createProject, setActiveProject } = useApp();
   const [prompt, setPrompt] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
