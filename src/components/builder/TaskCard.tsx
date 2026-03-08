@@ -159,4 +159,4 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
       </div>
     </motion.div>
   );
-}
+});
