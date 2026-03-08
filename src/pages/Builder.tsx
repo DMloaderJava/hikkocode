@@ -167,7 +167,10 @@ export default function Builder() {
             <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-accent text-accent text-xs font-medium hover:bg-accent/10 transition-colors">
               Upgrade
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity">
+            <button
+              onClick={() => setShowPublish(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity"
+            >
               Publish
             </button>
           </div>
