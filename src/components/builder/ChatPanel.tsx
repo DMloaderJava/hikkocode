@@ -12,6 +12,7 @@ import {
   StopCircle,
 } from "lucide-react";
 import { useApp, ChatMessage, GeneratedFile, GenerationTask, TaskStep } from "@/context/AppContext";
+import { buildSmartContext, buildFullContext } from "@/lib/fileTools";
 import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { TaskCard } from "./TaskCard";
@@ -376,10 +377,20 @@ export function ChatPanel() {
         { role: "user" as const, content: prompt.trim() },
       ];
 
+      // Build smart context: use plan data to prioritize relevant files
       if (activeProject.files.length > 0) {
-        const filesContext = activeProject.files
-          .map((f) => `--- ${f.path} ---\n${f.content}`)
-          .join("\n\n");
+        let filesContext: string;
+        if (plan && (plan.files_to_read.length > 0 || plan.files_to_edit.length > 0)) {
+          // Smart context: full content for files agent needs, summaries for rest
+          filesContext = buildSmartContext(
+            activeProject.files,
+            plan.files_to_read,
+            plan.files_to_edit
+          );
+        } else {
+          // No plan data — send everything
+          filesContext = buildFullContext(activeProject.files);
+        }
         history[history.length - 1] = {
           role: "user",
           content: `Current project files:\n\n${filesContext}\n\nUser request: ${prompt.trim()}`,
