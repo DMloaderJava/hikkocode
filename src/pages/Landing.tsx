@@ -168,8 +168,8 @@ export default function Landing() {
                 <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <MessageCircle className="w-4 h-4" />
                 </button>
-                <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-                  <Lightbulb className="w-4 h-4" />
+                <button type="button" onClick={() => setShowApiKey(true)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title="API Key">
+                  <Key className="w-4 h-4" />
                 </button>
               </div>
               <button
