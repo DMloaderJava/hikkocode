@@ -148,7 +148,7 @@ export default function Landing() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask Laughable to build your app..."
+              placeholder="Ask hikkocode to build your app..."
               className="w-full bg-transparent text-foreground placeholder:text-muted-foreground text-sm resize-none outline-none min-h-[80px] mb-3"
               rows={3}
               onKeyDown={(e) => {
