@@ -349,8 +349,10 @@ export function ChatPanel() {
         finalDisplay = `${cleanText || "Done!"}\n\n📁 **Generated files:** ${fileList}`;
       }
 
-      updateLastAssistantMessage(activeProject.id, finalDisplay || fullText || "Done!");
-    } catch (err) {
+      const finalContent = finalDisplay || fullText || "Done!";
+      updateLastAssistantMessage(activeProject.id, finalContent);
+      // Persist to DB
+      persistAssistantMessage(activeProject.id, assistantMsgId, finalContent);
       if (err instanceof DOMException && err.name === "AbortError") {
         updateLastAssistantMessage(activeProject.id, "⏹️ Generation stopped by user.");
       } else {
