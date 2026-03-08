@@ -1,12 +1,19 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, Bot, User } from "lucide-react";
 import { useApp, ChatMessage } from "@/context/AppContext";
 import { generateProject } from "@/lib/generator";
 
 export function ChatPanel() {
-  const { activeProject, addMessage, setFiles, isGenerating, setIsGenerating, setLoadingMessage, loadingMessage } = useApp();
+  const { activeProject, addMessage, setFiles, isGenerating, setIsGenerating, setLoadingMessage, loadingMessage, updateLastAssistantMessage } = useApp();
   const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [activeProject?.messages, isGenerating, loadingMessage]);
 
   if (!activeProject) {
     return (
@@ -36,25 +43,40 @@ export function ChatPanel() {
     setIsGenerating(true);
     setLoadingMessage("🚀 Initializing AI brain...");
 
-    try {
-      const files = await generateProject(prompt, activeProject.files, setLoadingMessage);
-      setFiles(activeProject.id, files);
+    // Add initial assistant message for streaming
+    const assistantMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: "⏳ Generating your app...",
+      timestamp: new Date(),
+    };
+    addMessage(activeProject.id, assistantMsg);
 
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Done! I generated ${files.length} files for your project. Check the preview panel to see it live! 🎉\n\nFiles created:\n${files.map(f => `- \`${f.path}\``).join("\n")}`,
-        timestamp: new Date(),
-      };
-      addMessage(activeProject.id, assistantMsg);
-    } catch {
-      const errorMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "Oops! The AI hamsters got tired. 🐹 Try again?",
-        timestamp: new Date(),
-      };
-      addMessage(activeProject.id, errorMsg);
+    try {
+      const files = await generateProject(
+        prompt,
+        activeProject.files,
+        setLoadingMessage,
+        (streamedText: string) => {
+          // Show partial streamed content
+          const preview = streamedText.length > 200
+            ? `🔄 Receiving code... (${streamedText.length} chars so far)`
+            : "🔄 AI is writing code...";
+          updateLastAssistantMessage(activeProject.id, preview);
+        }
+      );
+      setFiles(activeProject.id, files, prompt);
+
+      updateLastAssistantMessage(
+        activeProject.id,
+        `Done! I generated ${files.length} files for your project. Check the preview panel to see it live! 🎉\n\nFiles created:\n${files.map(f => `- \`${f.path}\``).join("\n")}`
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      updateLastAssistantMessage(
+        activeProject.id,
+        `Oops! Something went wrong: ${errorMessage} 🐹\n\nTry again?`
+      );
     } finally {
       setIsGenerating(false);
       setLoadingMessage("");
@@ -64,7 +86,7 @@ export function ChatPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
         <AnimatePresence mode="popLayout">
           {activeProject.messages.map((msg) => (
             <motion.div
