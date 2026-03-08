@@ -110,6 +110,7 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
         {expanded && filesChanged && filesChanged.length > 0 && (
           <motion.div
             key="files-list"
+            initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
