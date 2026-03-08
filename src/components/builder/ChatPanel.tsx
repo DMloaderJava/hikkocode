@@ -56,25 +56,80 @@ function generateTaskTitle(prompt: string): string {
   if (lower.includes("fix") || lower.includes("bug")) return "Fix reported issues";
   if (lower.includes("add") || lower.includes("create")) return "Implement new feature";
   if (lower.includes("style") || lower.includes("design") || lower.includes("ui")) return "Update UI design";
-  // Truncate prompt as title
+  if (lower.includes("change") || lower.includes("update") || lower.includes("modify")) return "Apply modifications";
   const words = prompt.trim().split(/\s+/).slice(0, 5).join(" ");
   return words.length > 40 ? words.slice(0, 40) + "…" : words;
 }
 
-function generateTaskSteps(prompt: string): TaskStep[] {
+function generateInitialSteps(prompt: string, hasExistingFiles: boolean): TaskStep[] {
   const lower = prompt.toLowerCase();
-  const steps: TaskStep[] = [
-    { id: "1", label: "Analyze requirements", status: "pending" },
-  ];
+  const steps: TaskStep[] = [];
 
+  // Step 1: Thinking
+  steps.push({
+    id: "think",
+    label: "Thinking",
+    status: "pending",
+    type: "think",
+    detail: "Analyzing your request...",
+  });
+
+  // Step 2: Read existing files (if project has files)
+  if (hasExistingFiles) {
+    steps.push({
+      id: "read",
+      label: "Reading project files",
+      status: "pending",
+      type: "read",
+      detail: "Understanding current codebase",
+    });
+  }
+
+  // Step 3: Plan
+  steps.push({
+    id: "plan",
+    label: "Creating action plan",
+    status: "pending",
+    type: "plan",
+    detail: "Determining what to build",
+  });
+
+  // Step 4+: Dynamic edit steps based on prompt
   if (lower.includes("fix") || lower.includes("bug") || lower.includes("error")) {
-    steps.push({ id: "2", label: "Identify root cause", status: "pending" });
-    steps.push({ id: "3", label: "Apply fix", status: "pending" });
-    steps.push({ id: "4", label: "Verify solution", status: "pending" });
+    steps.push({
+      id: "edit-fix",
+      label: "Applying fix",
+      status: "pending",
+      type: "edit",
+    });
+    steps.push({
+      id: "verify",
+      label: "Verifying solution",
+      status: "pending",
+      type: "verify",
+    });
   } else {
-    steps.push({ id: "2", label: "Generate component structure", status: "pending" });
-    steps.push({ id: "3", label: "Write implementation code", status: "pending" });
-    steps.push({ id: "4", label: "Apply styles and polish", status: "pending" });
+    steps.push({
+      id: "edit-html",
+      label: "Writing index.html",
+      status: "pending",
+      type: "edit",
+      detail: "/index.html",
+    });
+    steps.push({
+      id: "edit-css",
+      label: "Writing styles.css",
+      status: "pending",
+      type: "edit",
+      detail: "/styles.css",
+    });
+    steps.push({
+      id: "edit-js",
+      label: "Writing app.js",
+      status: "pending",
+      type: "edit",
+      detail: "/app.js",
+    });
   }
 
   return steps;
@@ -193,9 +248,11 @@ export function ChatPanel() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    // Create task card
+    // Create task card with smart steps
     const taskTitle = generateTaskTitle(prompt);
-    const taskSteps = generateTaskSteps(prompt);
+    const hasFiles = activeProject.files.length > 0;
+    const taskSteps = generateInitialSteps(prompt, hasFiles);
+    const startTime = Date.now();
     let currentTask: GenerationTask = {
       id: crypto.randomUUID(),
       title: taskTitle,
@@ -232,6 +289,46 @@ export function ChatPanel() {
     }
 
     try {
+      // === PHASE 1: Thinking ===
+      const thinkStepIdx = currentTask.steps.findIndex(s => s.id === "think");
+      if (thinkStepIdx >= 0) {
+        currentTask = advanceTaskStep(currentTask, thinkStepIdx);
+        currentTask.steps[thinkStepIdx].detail = "Analyzing your request...";
+        updateLastAssistantTask(activeProject.id, currentTask);
+      }
+      await new Promise(r => setTimeout(r, 600));
+
+      // === PHASE 2: Reading files (if applicable) ===
+      const readStepIdx = currentTask.steps.findIndex(s => s.id === "read");
+      if (readStepIdx >= 0) {
+        if (thinkStepIdx >= 0) {
+          currentTask.steps[thinkStepIdx].status = "done";
+          currentTask.steps[thinkStepIdx].duration = Date.now() - startTime;
+        }
+        currentTask = advanceTaskStep(currentTask, readStepIdx);
+        const fileNames = activeProject.files.map(f => f.name).join(", ");
+        currentTask.steps[readStepIdx].detail = fileNames;
+        updateLastAssistantTask(activeProject.id, currentTask);
+        setLoadingMessage("📖 Reading project files...");
+        await new Promise(r => setTimeout(r, 400));
+      }
+
+      // === PHASE 3: Planning ===
+      const planStepIdx = currentTask.steps.findIndex(s => s.id === "plan");
+      if (planStepIdx >= 0) {
+        // Complete previous steps
+        for (let i = 0; i < planStepIdx; i++) {
+          currentTask.steps[i].status = "done";
+          if (!currentTask.steps[i].duration) currentTask.steps[i].duration = Date.now() - startTime;
+        }
+        currentTask = advanceTaskStep(currentTask, planStepIdx);
+        currentTask.steps[planStepIdx].detail = "Determining approach...";
+        updateLastAssistantTask(activeProject.id, currentTask);
+        setLoadingMessage("📋 Creating action plan...");
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // === Make the actual API call ===
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
@@ -255,16 +352,30 @@ export function ChatPanel() {
 
       if (!resp.body) throw new Error("No response body");
 
-      // Advance to step 2
-      currentTask = advanceTaskStep(currentTask, 1);
-      updateLastAssistantTask(activeProject.id, currentTask);
+      // Complete planning, start editing
+      if (planStepIdx >= 0) {
+        currentTask.steps[planStepIdx].status = "done";
+        currentTask.steps[planStepIdx].duration = Date.now() - startTime;
+        currentTask.steps[planStepIdx].detail = "Plan ready";
+      }
+
+      // Find first edit step
+      const editSteps = currentTask.steps.filter(s => s.type === "edit");
+      let currentEditIdx = 0;
+      if (editSteps.length > 0) {
+        const firstEditGlobalIdx = currentTask.steps.findIndex(s => s.id === editSteps[0].id);
+        currentTask = advanceTaskStep(currentTask, firstEditGlobalIdx);
+        updateLastAssistantTask(activeProject.id, currentTask);
+        setLoadingMessage("✏️ Writing code...");
+      }
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let fullText = "";
       let textBuffer = "";
       let hasStartedContent = false;
-      let advancedToStep3 = false;
+      let charThresholds = [100, 400, 800]; // advance edit steps at these thresholds
+      let thresholdIdx = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -293,16 +404,35 @@ export function ChatPanel() {
 
               if (!hasStartedContent) {
                 hasStartedContent = true;
-                // Advance to step 2 (generating)
-                currentTask = advanceTaskStep(currentTask, 2);
-                updateLastAssistantTask(activeProject.id, currentTask);
               }
 
-              // When we have significant content, advance to step 3
-              if (!advancedToStep3 && fullText.length > 200) {
-                advancedToStep3 = true;
-                currentTask = advanceTaskStep(currentTask, 3);
+              // Progress through edit steps based on content length
+              if (
+                thresholdIdx < charThresholds.length &&
+                fullText.length > charThresholds[thresholdIdx] &&
+                currentEditIdx < editSteps.length - 1
+              ) {
+                // Complete current edit step, advance to next
+                const curStepGlobal = currentTask.steps.findIndex(s => s.id === editSteps[currentEditIdx].id);
+                if (curStepGlobal >= 0) {
+                  currentTask.steps[curStepGlobal].status = "done";
+                  currentTask.steps[curStepGlobal].duration = Date.now() - startTime;
+                }
+                currentEditIdx++;
+                const nextStepGlobal = currentTask.steps.findIndex(s => s.id === editSteps[currentEditIdx].id);
+                if (nextStepGlobal >= 0) {
+                  currentTask = advanceTaskStep(currentTask, nextStepGlobal);
+                  // Update detail with detected file being written
+                  if (fullText.includes("styles.css") || fullText.includes('"language": "css"')) {
+                    currentTask.steps[nextStepGlobal].detail = "/styles.css";
+                    setLoadingMessage("🎨 Writing styles...");
+                  } else if (fullText.includes("app.js") || fullText.includes('"language": "javascript"')) {
+                    currentTask.steps[nextStepGlobal].detail = "/app.js";
+                    setLoadingMessage("⚡ Writing JavaScript...");
+                  }
+                }
                 updateLastAssistantTask(activeProject.id, currentTask);
+                thresholdIdx++;
               }
 
               updateLastAssistantMessage(activeProject.id, displayText);
@@ -336,10 +466,38 @@ export function ChatPanel() {
       const fileNames = files ? files.map(f => f.path) : [];
       if (files && files.length > 0) {
         setFiles(activeProject.id, files, prompt.trim());
+
+        // Update edit steps with actual file names
+        const editStepsList = currentTask.steps.filter(s => s.type === "edit");
+        files.forEach((f, i) => {
+          if (i < editStepsList.length) {
+            const idx = currentTask.steps.findIndex(s => s.id === editStepsList[i].id);
+            if (idx >= 0) {
+              currentTask.steps[idx].label = `Edited ${f.name}`;
+              currentTask.steps[idx].detail = f.path;
+            }
+          }
+        });
+
+        // If more files than edit steps, add extra steps
+        if (files.length > editStepsList.length) {
+          for (let i = editStepsList.length; i < files.length; i++) {
+            currentTask.steps.push({
+              id: `edit-extra-${i}`,
+              label: `Edited ${files[i].name}`,
+              status: "done",
+              type: "edit",
+              detail: files[i].path,
+            });
+          }
+        }
       }
+
+      const totalTime = Date.now() - startTime;
 
       // Complete all task steps
       currentTask = completeAllSteps(currentTask, fileNames);
+      currentTask.thinkingTime = totalTime;
       updateLastAssistantTask(activeProject.id, currentTask);
 
       // Final display
@@ -418,6 +576,7 @@ export function ChatPanel() {
                           steps={msg.task.steps}
                           toolCount={msg.task.toolCount}
                           filesChanged={msg.task.filesChanged}
+                          thinkingTime={msg.task.thinkingTime}
                           timestamp={msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         />
                       )}
