@@ -205,6 +205,8 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
       setCreatingPR(false);
     }
   };
+
+  const handleCopyClone = () => {
     if (!connection) return;
     navigator.clipboard.writeText(
       `git clone https://github.com/${connection.owner}/${connection.repo}.git`
