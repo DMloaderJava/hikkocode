@@ -134,7 +134,6 @@ function generateInitialSteps(prompt: string, hasExistingFiles: boolean): TaskSt
 
   return steps;
 }
-}
 
 export function ChatPanel() {
   const {
