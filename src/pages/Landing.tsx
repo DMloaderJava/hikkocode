@@ -239,7 +239,7 @@ export default function Landing() {
       )}
 
       <footer className="py-6 text-center text-xs text-muted-foreground">
-        🤖 Laughable AI — A parody for educational purposes
+        🤖 hikkocode — Build apps with AI
       </footer>
     </div>
   );
