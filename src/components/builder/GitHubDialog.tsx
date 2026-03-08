@@ -157,7 +157,7 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
         owner: connection.owner,
         repo: connection.repo,
         branch: connection.branch,
-        message: `Update from Laughable – v${activeProject.version}`,
+        message: `Update from hikkocode – v${activeProject.version}`,
         files: activeProject.files.map((f) => ({ path: f.path, content: f.content })),
       });
       setPushSuccess(true);
