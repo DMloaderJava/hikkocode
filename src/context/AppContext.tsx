@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export interface GeneratedFile {
   name: string;
@@ -39,10 +41,12 @@ interface AppState {
   isGenerating: boolean;
   loadingMessage: string;
   activeFile: GeneratedFile | null;
+  user: User | null;
+  authLoading: boolean;
 }
 
 interface AppContextType extends AppState {
-  createProject: (name: string, description: string) => Project;
+  createProject: (name: string, description: string) => Promise<Project>;
   setActiveProject: (project: Project) => void;
   setActiveFile: (file: GeneratedFile | null) => void;
   addMessage: (projectId: string, message: ChatMessage) => void;
@@ -51,9 +55,11 @@ interface AppContextType extends AppState {
   setLoadingMessage: (msg: string) => void;
   restoreVersion: (projectId: string, versionId: string) => void;
   updateLastAssistantMessage: (projectId: string, content: string) => void;
+  signOut: () => Promise<void>;
+  loadProjects: () => Promise<void>;
 }
 
-const funnyLoadingMessages = [
+export const funnyLoadingMessages = [
   "🎨 Convincing CSS to align divs...",
   "🧠 Teaching AI what flexbox means...",
   "🔮 Consulting the Stack Overflow oracle...",
@@ -80,9 +86,114 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isGenerating: false,
     loadingMessage: "",
     activeFile: null,
+    user: null,
+    authLoading: true,
   });
 
-  const createProject = useCallback((name: string, description: string) => {
+  // Auth listener
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setState(prev => ({ ...prev, user: session?.user ?? null, authLoading: false }));
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setState(prev => ({ ...prev, user: session?.user ?? null, authLoading: false }));
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setState(prev => ({ ...prev, user: null, projects: [], activeProject: null, activeFile: null }));
+  }, []);
+
+  const loadProjects = useCallback(async () => {
+    if (!state.user) return;
+
+    const { data: projectRows } = await supabase
+      .from("projects")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!projectRows) return;
+
+    const projects: Project[] = [];
+
+    for (const row of projectRows) {
+      const { data: fileRows } = await supabase
+        .from("project_files")
+        .select("*")
+        .eq("project_id", row.id);
+
+      const { data: msgRows } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("project_id", row.id)
+        .order("created_at", { ascending: true });
+
+      projects.push({
+        id: row.id,
+        name: row.name,
+        description: row.description || "",
+        version: row.version,
+        createdAt: new Date(row.created_at),
+        files: (fileRows || []).map(f => ({
+          name: f.name,
+          path: f.path,
+          language: f.language,
+          content: f.content,
+        })),
+        messages: (msgRows || []).map(m => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: new Date(m.created_at),
+        })),
+        history: [],
+      });
+    }
+
+    setState(prev => ({ ...prev, projects }));
+  }, [state.user]);
+
+  // Load projects when user logs in
+  useEffect(() => {
+    if (state.user) loadProjects();
+  }, [state.user]);
+
+  const createProject = useCallback(async (name: string, description: string) => {
+    // Create in DB if user is logged in
+    if (state.user) {
+      const { data, error } = await supabase
+        .from("projects")
+        .insert({ name, description, user_id: state.user.id })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const project: Project = {
+        id: data.id,
+        name: data.name,
+        description: data.description || "",
+        messages: [],
+        files: [],
+        createdAt: new Date(data.created_at),
+        version: 0,
+        history: [],
+      };
+
+      setState(prev => ({
+        ...prev,
+        projects: [project, ...prev.projects],
+        activeProject: project,
+        activeFile: null,
+      }));
+      return project;
+    }
+
+    // Fallback: local-only
     const project: Project = {
       id: crypto.randomUUID(),
       name,
@@ -95,12 +206,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     setState(prev => ({
       ...prev,
-      projects: [...prev.projects, project],
+      projects: [project, ...prev.projects],
       activeProject: project,
       activeFile: null,
     }));
     return project;
-  }, []);
+  }, [state.user]);
 
   const setActiveProject = useCallback((project: Project) => {
     setState(prev => ({ ...prev, activeProject: project, activeFile: null }));
@@ -111,6 +222,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addMessage = useCallback((projectId: string, message: ChatMessage) => {
+    // Save to DB async (fire and forget)
+    if (state.user) {
+      supabase
+        .from("chat_messages")
+        .insert({
+          id: message.id,
+          project_id: projectId,
+          role: message.role,
+          content: message.content,
+        })
+        .then();
+    }
+
     setState(prev => {
       const projects = prev.projects.map(p =>
         p.id === projectId ? { ...p, messages: [...p.messages, message] } : p
@@ -120,7 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : prev.activeProject;
       return { ...prev, projects, activeProject };
     });
-  }, []);
+  }, [state.user]);
 
   const updateLastAssistantMessage = useCallback((projectId: string, content: string) => {
     setState(prev => {
@@ -143,9 +267,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setFiles = useCallback((projectId: string, files: GeneratedFile[], prompt?: string) => {
+    // Save files to DB
+    if (state.user) {
+      // Delete old files and insert new ones
+      supabase
+        .from("project_files")
+        .delete()
+        .eq("project_id", projectId)
+        .then(() => {
+          supabase
+            .from("project_files")
+            .insert(files.map(f => ({
+              project_id: projectId,
+              name: f.name,
+              path: f.path,
+              language: f.language,
+              content: f.content,
+            })))
+            .then();
+        });
+
+      // Update project version
+      supabase
+        .from("projects")
+        .update({ version: (state.activeProject?.version || 0) + 1, updated_at: new Date().toISOString() })
+        .eq("id", projectId)
+        .then();
+    }
+
     setState(prev => {
       const updateProject = (p: Project): Project => {
-        // Save current version to history before overwriting
         const snapshot: VersionSnapshot = {
           id: crypto.randomUUID(),
           version: p.version,
@@ -165,14 +316,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : prev.activeProject;
       return { ...prev, projects, activeProject };
     });
-  }, []);
+  }, [state.user, state.activeProject]);
 
   const restoreVersion = useCallback((projectId: string, versionId: string) => {
     setState(prev => {
       const restoreInProject = (p: Project): Project => {
         const snapshot = p.history.find(h => h.id === versionId);
         if (!snapshot) return p;
-        // Save current as a snapshot too
         const currentSnapshot: VersionSnapshot = {
           id: crypto.randomUUID(),
           version: p.version,
@@ -218,6 +368,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLoadingMessage,
       restoreVersion,
       updateLastAssistantMessage,
+      signOut,
+      loadProjects,
     }}>
       {children}
     </AppContext.Provider>
@@ -229,5 +381,3 @@ export function useApp() {
   if (!ctx) throw new Error("useApp must be inside AppProvider");
   return ctx;
 }
-
-export { funnyLoadingMessages };

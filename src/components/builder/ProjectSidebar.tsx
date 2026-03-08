@@ -1,26 +1,31 @@
 import { useApp } from "@/context/AppContext";
-import { Plus, FolderOpen, Settings, ChevronDown, Home, PanelLeftClose } from "lucide-react";
+import { Plus, FolderOpen, Settings, Home, PanelLeftClose, LogOut } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 export function ProjectSidebar({ onCollapse }: { onCollapse?: () => void }) {
-  const { projects, activeProject, setActiveProject, createProject } = useApp();
+  const { projects, activeProject, setActiveProject, createProject, user, signOut } = useApp();
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const navigate = useNavigate();
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) return;
-    createProject(newName.trim(), "");
+    await createProject(newName.trim(), "");
     setNewName("");
     setShowNew(false);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
   };
 
   return (
     <div className="w-56 bg-card border-r border-border flex flex-col h-full">
       {/* Header */}
-      <div className="h-12 flex items-center justify-between px-3 border-b border-border">
+      <div className="h-11 flex items-center justify-between px-3 border-b border-border">
         <button onClick={() => navigate("/")} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="w-5 h-5 rounded gradient-lovable" />
           <span className="text-sm font-semibold text-foreground">Laughable</span>
@@ -67,10 +72,7 @@ export function ProjectSidebar({ onCollapse }: { onCollapse?: () => void }) {
         </motion.div>
       )}
 
-      {/* Divider */}
-      <div className="px-3">
-        <div className="border-b border-border" />
-      </div>
+      <div className="px-3"><div className="border-b border-border" /></div>
 
       {/* Navigation */}
       <div className="px-2 py-2">
@@ -110,17 +112,24 @@ export function ProjectSidebar({ onCollapse }: { onCollapse?: () => void }) {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer with user info */}
       <div className="p-2 border-t border-border">
-        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-secondary transition-colors cursor-pointer">
-          <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs">
-            🤖
+        <div className="flex items-center gap-2 px-2 py-1.5">
+          <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs flex-shrink-0">
+            {user?.email?.[0]?.toUpperCase() || "?"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-foreground font-medium truncate">Free plan</p>
-            <p className="text-[10px] text-muted-foreground">5 credits remaining</p>
+            <p className="text-xs text-foreground font-medium truncate">
+              {user?.email || "Guest"}
+            </p>
           </div>
-          <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+          <button
+            onClick={handleSignOut}
+            className="p-1 rounded-md text-muted-foreground hover:text-destructive transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </div>

@@ -6,13 +6,19 @@ import { useApp } from "@/context/AppContext";
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { createProject } = useApp();
+  const { user, createProject } = useApp();
   const [prompt, setPrompt] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
-    const project = createProject(prompt.trim().slice(0, 40), prompt.trim());
+
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    const project = await createProject(prompt.trim().slice(0, 40), prompt.trim());
     navigate("/builder", { state: { initialPrompt: prompt.trim() } });
   };
 
@@ -32,18 +38,29 @@ export default function Landing() {
           <span className="font-semibold text-lg text-foreground">Laughable</span>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/builder")}
-            className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Log in
-          </button>
-          <button
-            onClick={() => navigate("/builder")}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            Get started
-          </button>
+          {user ? (
+            <button
+              onClick={() => navigate("/builder")}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Open Builder
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate("/auth")}
+                className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Log in
+              </button>
+              <button
+                onClick={() => navigate("/auth")}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Get started
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -90,22 +107,13 @@ export default function Landing() {
             />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
+                <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <Plus className="w-4 h-4" />
                 </button>
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
+                <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <MessageCircle className="w-4 h-4" />
                 </button>
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
+                <button type="button" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <Lightbulb className="w-4 h-4" />
                 </button>
               </div>
@@ -134,7 +142,6 @@ export default function Landing() {
         </motion.div>
       </div>
 
-      {/* Footer */}
       <footer className="py-6 text-center text-xs text-muted-foreground">
         🤖 Laughable AI — A parody for educational purposes
       </footer>
