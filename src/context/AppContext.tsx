@@ -183,7 +183,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    setState(prev => ({ ...prev, projects }));
+    setState(prev => ({
+      ...prev,
+      projects,
+      activeProject: prev.activeProject
+        ? projects.find(p => p.id === prev.activeProject!.id) || projects[0] || null
+        : projects[0] || null,
+    }));
   }, []);
 
   // Load projects when user logs in (only once per session)
