@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 
 interface LivePreviewProps {
   device?: "desktop" | "tablet" | "mobile";
+  refreshKey?: number;
 }
 
-export function LivePreview({ device = "desktop" }: LivePreviewProps) {
+export function LivePreview({ device = "desktop", refreshKey = 0 }: LivePreviewProps) {
   const { activeProject, isGenerating } = useApp();
-  const [key, setKey] = useState(0);
 
   const previewHtml = useMemo(() => {
     if (!activeProject || activeProject.files.length === 0) return null;
