@@ -6,7 +6,7 @@ import {
   Bot,
   Loader2,
   Image,
-  Lightbulb,
+  Key,
   LayoutGrid,
   Square,
   StopCircle,
@@ -17,6 +17,7 @@ import { diffFiles, diffSummary, type FileDiff } from "@/lib/diff";
 import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { TaskCard } from "./TaskCard";
+import { ApiKeyDialog, getStoredApiKey } from "@/components/ApiKeyDialog";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 const PLAN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/plan`;
