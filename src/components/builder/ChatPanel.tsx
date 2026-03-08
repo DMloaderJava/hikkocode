@@ -349,11 +349,16 @@ export function ChatPanel() {
 
       updateLastAssistantMessage(activeProject.id, finalDisplay || fullText || "Done!");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      updateLastAssistantMessage(activeProject.id, `⚠️ Something went wrong: ${errorMessage}`);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        updateLastAssistantMessage(activeProject.id, "⏹️ Generation stopped by user.");
+      } else {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        updateLastAssistantMessage(activeProject.id, `⚠️ Something went wrong: ${errorMessage}`);
+      }
       currentTask = completeAllSteps(currentTask, []);
       updateLastAssistantTask(activeProject.id, currentTask);
     } finally {
+      abortControllerRef.current = null;
       setIsGenerating(false);
       setLoadingMessage("");
     }
