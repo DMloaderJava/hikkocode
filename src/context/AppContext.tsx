@@ -283,6 +283,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateLastAssistantTask = useCallback((projectId: string, task: GenerationTask) => {
+    setState(prev => {
+      const updateMessages = (messages: ChatMessage[]) => {
+        const lastIdx = messages.length - 1;
+        if (lastIdx >= 0 && messages[lastIdx].role === "assistant") {
+          return messages.map((m, i) => i === lastIdx ? { ...m, task } : m);
+        }
+        return messages;
+      };
+
+      const projects = prev.projects.map(p =>
+        p.id === projectId ? { ...p, messages: updateMessages(p.messages) } : p
+      );
+      const activeProject = prev.activeProject?.id === projectId
+        ? { ...prev.activeProject, messages: updateMessages(prev.activeProject.messages) }
+        : prev.activeProject;
+      return { ...prev, projects, activeProject };
+    });
+  }, []);
+
   const setFiles = useCallback((projectId: string, files: GeneratedFile[], prompt?: string) => {
     // Save files to DB
     if (state.user) {
