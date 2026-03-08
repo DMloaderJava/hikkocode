@@ -650,6 +650,8 @@ export function ChatPanel() {
                           filesChanged={msg.task.filesChanged}
                           thinkingTime={msg.task.thinkingTime}
                           plan={(msg.task as any).plan}
+                          diffs={(msg.task as any).diffs}
+                          diffSummaryText={(msg.task as any).diffSummary}
                           timestamp={msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         />
                       )}
