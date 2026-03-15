@@ -34,32 +34,7 @@ interface AgentPlan {
   technologies?: string[];
 }
 
-function extractFiles(text: string): GeneratedFile[] | null {
-  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)```/);
-  if (jsonBlockMatch) {
-    try {
-      const parsed = JSON.parse(jsonBlockMatch[1]);
-      if (parsed?.files && Array.isArray(parsed.files) && parsed.files.length > 0) {
-        return parsed.files;
-      }
-    } catch { /* ignore */ }
-  }
-  const rawMatch = text.match(/\{\s*"files"\s*:\s*\[[\s\S]*\]\s*\}/);
-  if (rawMatch) {
-    try {
-      const parsed = JSON.parse(rawMatch[0]);
-      if (parsed?.files?.length > 0) return parsed.files;
-    } catch { /* ignore */ }
-  }
-  return null;
-}
-
-function stripFilesJson(text: string): string {
-  return text
-    .replace(/```json\s*\{[\s\S]*?"files"[\s\S]*?```/g, "")
-    .replace(/\{\s*"files"\s*:\s*\[[\s\S]*\]\s*\}/g, "")
-    .trim();
-}
+// File extraction no longer needed — agent writes files directly
 
 function generateTaskTitle(prompt: string): string {
   const lower = prompt.toLowerCase();
