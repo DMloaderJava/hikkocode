@@ -27,6 +27,7 @@ import {
   ExternalLink,
   Slash,
   Github,
+  Bot,
 } from "lucide-react";
 import {
   DropdownMenu,
