@@ -7,6 +7,7 @@ import { PublishDialog } from "@/components/builder/PublishDialog";
 import { BuildLogs } from "@/components/builder/BuildLogs";
 import { VersionHistory } from "@/components/builder/VersionHistory";
 import { GitHubDialog } from "@/components/builder/GitHubDialog";
+import { AgentTasksPanel } from "@/components/builder/AgentTasksPanel";
 import { useApp } from "@/context/AppContext";
 import { useState, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
