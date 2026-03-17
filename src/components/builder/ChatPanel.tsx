@@ -143,6 +143,7 @@ export function ChatPanel() {
     persistAssistantMessage,
   } = useApp();
   const [input, setInput] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -413,11 +414,12 @@ export function ChatPanel() {
             { path: "/app.js", action: "create" as const },
           ]};
 
-      // Map plan file tasks to step IDs
+      // Map plan file tasks to step IDs (normalize paths for matching)
+      const normPath = (p: string) => p.startsWith("/") ? p : `/${p}`;
       const fileStepMap = new Map<string, number>();
       currentTask.steps.forEach((step, idx) => {
         if (step.detail && (step.type === "edit" || step.type === "create_file")) {
-          fileStepMap.set(step.detail, idx);
+          fileStepMap.set(normPath(step.detail), idx);
         }
       });
 
@@ -433,9 +435,9 @@ export function ChatPanel() {
         activeProject.files,
         {
           onFileStart: (path, action) => {
-            const stepIdx = fileStepMap.get(path);
+            const normalizedPath = normPath(path);
+            const stepIdx = fileStepMap.get(normalizedPath);
             if (stepIdx !== undefined) {
-              // Complete previous in-progress step
               const inProgressIdx = currentTask.steps.findIndex(s => s.status === "in_progress");
               if (inProgressIdx >= 0 && inProgressIdx !== stepIdx) {
                 currentTask.steps[inProgressIdx].status = "done";
@@ -444,19 +446,26 @@ export function ChatPanel() {
               currentTask = advanceTaskStep(currentTask, stepIdx);
               updateLastAssistantTask(activeProject.id, currentTask);
             }
+            const total = perFilePlan.fileTasks.length;
+            const done = completedFiles.length;
+            const pct = Math.round(((done) / total) * 100);
             const icon = action === "create" ? "📄" : "✏️";
             const fileName = path.split("/").pop() || path;
-            setLoadingMessage(`${icon} ${action === "create" ? "Creating" : "Editing"} ${fileName}...`);
-            updateLastAssistantMessage(activeProject.id, `${icon} Working on \`${path}\`...`);
+            setLoadingMessage(`${icon} ${action === "create" ? "Creating" : "Editing"} ${fileName}... (${done}/${total} — ${pct}%)`);
+            updateLastAssistantMessage(activeProject.id, `${icon} Working on \`${path}\`... [${done}/${total}]`);
           },
           onFileStream: (path, partialContent) => {
             const lines = partialContent.split("\n").length;
             const fileName = path.split("/").pop() || path;
-            setLoadingMessage(`✏️ Writing ${fileName} (${lines} lines)...`);
+            const total = perFilePlan.fileTasks.length;
+            const done = completedFiles.length;
+            const pct = Math.round(((done + 0.5) / total) * 100);
+            setLoadingMessage(`✏️ Writing ${fileName} (${lines} lines) — ${pct}%`);
           },
           onFileDone: (path, file) => {
             completedFiles.push(path);
-            const stepIdx = fileStepMap.get(path);
+            const normalizedPath = normPath(path);
+            const stepIdx = fileStepMap.get(normalizedPath);
             if (stepIdx !== undefined) {
               currentTask.steps[stepIdx].status = "done";
               currentTask.steps[stepIdx].duration = Date.now() - startTime;
@@ -470,16 +479,19 @@ export function ChatPanel() {
 
             // Build merged file list from old files + all accumulated so far
             const mergedFiles = oldFiles.map(f => accumulatedFiles.get(f.path) || f);
-            for (const [path, af] of accumulatedFiles) {
-              if (!oldFiles.some(f => f.path === path)) {
+            for (const [accPath, af] of accumulatedFiles) {
+              if (!oldFiles.some(f => f.path === accPath)) {
                 mergedFiles.push(af);
               }
             }
             setFiles(activeProject.id, mergedFiles, `${prompt.trim()} [file: ${file.path}]`);
 
+            const total = perFilePlan.fileTasks.length;
+            const done = completedFiles.length;
+            const pct = Math.round((done / total) * 100);
             updateLastAssistantMessage(
               activeProject.id,
-              `✅ ${file.name} applied (${completedFiles.length}/${perFilePlan.fileTasks.length} files)`
+              `✅ ${file.name} applied (${done}/${total} — ${pct}%)`
             );
           },
           onError: (path, error) => {
@@ -660,22 +672,15 @@ export function ChatPanel() {
                 >
                   <Image className="w-3.5 h-3.5" />
                 </button>
-                {(() => {
-                  const [showKey, setShowKey] = useState(false);
-                  return (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowKey(true)}
-                        className={`p-1.5 rounded-md transition-colors ${getStoredApiKey() ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-foreground'} hover:bg-secondary`}
-                        title="API Key"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-                      <ApiKeyDialog open={showKey} onClose={() => setShowKey(false)} />
-                    </>
-                  );
-                })()}
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(true)}
+                  className={`p-1.5 rounded-md transition-colors ${getStoredApiKey() ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-foreground'} hover:bg-secondary`}
+                  title="API Key"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                </button>
+                <ApiKeyDialog open={showApiKey} onClose={() => setShowApiKey(false)} />
                 <button
                   type="button"
                   onClick={() => {

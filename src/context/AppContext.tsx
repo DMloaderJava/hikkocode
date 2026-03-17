@@ -344,15 +344,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .then();
   }, []);
 
-  const setFiles = useCallback((projectId: string, files: GeneratedFile[], prompt?: string) => {
+  // Debounced DB persistence to avoid DELETE/INSERT race conditions
+  const fileSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingFilesRef = useRef<{ projectId: string; files: GeneratedFile[] } | null>(null);
+
+  const flushFilesToDb = useCallback((projectId: string, files: GeneratedFile[]) => {
     const user = userRef.current;
-    if (user) {
-      // Delete old files and insert new ones
-      supabase
-        .from("project_files")
-        .delete()
-        .eq("project_id", projectId)
-        .then(() => {
+    if (!user) return;
+    supabase
+      .from("project_files")
+      .delete()
+      .eq("project_id", projectId)
+      .then(() => {
+        if (files.length > 0) {
           supabase
             .from("project_files")
             .insert(files.map(f => ({
@@ -363,13 +367,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
               content: f.content,
             })))
             .then();
-        });
-    }
+        }
+      });
+  }, []);
+
+  const setFiles = useCallback((projectId: string, files: GeneratedFile[], prompt?: string) => {
+    // Debounce DB writes — only persist after 500ms of no further calls
+    pendingFilesRef.current = { projectId, files };
+    if (fileSaveTimerRef.current) clearTimeout(fileSaveTimerRef.current);
+    fileSaveTimerRef.current = setTimeout(() => {
+      const pending = pendingFilesRef.current;
+      if (pending) {
+        flushFilesToDb(pending.projectId, pending.files);
+        pendingFilesRef.current = null;
+      }
+    }, 500);
 
     setState(prev => {
       const updateProject = (p: Project): Project => {
-        // Update version in DB
         const newVersion = p.version + 1;
+        const user = userRef.current;
         if (user) {
           supabase
             .from("projects")
@@ -397,7 +414,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : prev.activeProject;
       return { ...prev, projects, activeProject };
     });
-  }, []);
+  }, [flushFilesToDb]);
 
   const restoreVersion = useCallback((projectId: string, versionId: string) => {
     setState(prev => {
