@@ -672,22 +672,15 @@ export function ChatPanel() {
                 >
                   <Image className="w-3.5 h-3.5" />
                 </button>
-                {(() => {
-                  const [showKey, setShowKey] = useState(false);
-                  return (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowKey(true)}
-                        className={`p-1.5 rounded-md transition-colors ${getStoredApiKey() ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-foreground'} hover:bg-secondary`}
-                        title="API Key"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-                      <ApiKeyDialog open={showKey} onClose={() => setShowKey(false)} />
-                    </>
-                  );
-                })()}
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(true)}
+                  className={`p-1.5 rounded-md transition-colors ${getStoredApiKey() ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-foreground'} hover:bg-secondary`}
+                  title="API Key"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                </button>
+                <ApiKeyDialog open={showApiKey} onClose={() => setShowApiKey(false)} />
                 <button
                   type="button"
                   onClick={() => {
