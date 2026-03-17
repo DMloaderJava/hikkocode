@@ -597,6 +597,10 @@ export function ChatPanel() {
                           toolCount={msg.task.toolCount}
                           filesChanged={msg.task.filesChanged}
                           thinkingTime={msg.task.thinkingTime}
+                          fileProgress={(msg.task as any).fileProgress}
+                          onSkipFile={isGenerating ? (path) => {
+                            skippedFilesRef.current?.add(path);
+                          } : undefined}
                           plan={(msg.task as any).plan}
                           diffs={(msg.task as any).diffs}
                           diffSummaryText={(msg.task as any).diffSummary}
