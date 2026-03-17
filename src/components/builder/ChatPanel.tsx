@@ -426,6 +426,8 @@ export function ChatPanel() {
       const completedFiles: string[] = [];
       let fileDiffs: FileDiff[] = [];
       const accumulatedFiles = new Map<string, GeneratedFile>();
+      const skippedFiles = new Set<string>();
+      let fileProgressState = { done: 0, total: perFilePlan.fileTasks.length };
 
       const oldFiles = [...activeProject.files];
 
