@@ -143,6 +143,7 @@ export function ChatPanel() {
     persistAssistantMessage,
   } = useApp();
   const [input, setInput] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
