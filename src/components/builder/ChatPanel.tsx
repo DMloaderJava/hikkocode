@@ -414,11 +414,12 @@ export function ChatPanel() {
             { path: "/app.js", action: "create" as const },
           ]};
 
-      // Map plan file tasks to step IDs
+      // Map plan file tasks to step IDs (normalize paths for matching)
+      const normPath = (p: string) => p.startsWith("/") ? p : `/${p}`;
       const fileStepMap = new Map<string, number>();
       currentTask.steps.forEach((step, idx) => {
         if (step.detail && (step.type === "edit" || step.type === "create_file")) {
-          fileStepMap.set(step.detail, idx);
+          fileStepMap.set(normPath(step.detail), idx);
         }
       });
 
