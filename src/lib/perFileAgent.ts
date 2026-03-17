@@ -19,6 +19,7 @@ interface PerFileCallbacks {
   onFileDone: (path: string, file: GeneratedFile) => void;
   onError: (path: string, error: string) => void;
   signal?: AbortSignal;
+  skippedFiles?: Set<string>;
 }
 
 function buildSingleFilePrompt(
