@@ -281,6 +281,8 @@ Deno.serve(async (req) => {
           // Create orphan branch: create tree → commit (no parents) → create ref
           const treeItems = [];
           for (const file of files) {
+            // Normalize path: remove leading slashes
+            const filePath = file.path.replace(/^\/+/, "");
             const blobResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/blobs`, {
               method: "POST",
               headers: ghHeaders,
@@ -288,7 +290,7 @@ Deno.serve(async (req) => {
             });
             const blobData = await blobResp.json();
             if (!blobResp.ok) throw new Error(`Failed to create blob [${blobResp.status}]`);
-            treeItems.push({ path: file.path, mode: "100644", type: "blob", sha: blobData.sha });
+            treeItems.push({ path: filePath, mode: "100644" as const, type: "blob" as const, sha: blobData.sha });
           }
 
           const treeResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/trees`, {
@@ -297,7 +299,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({ tree: treeItems }),
           });
           const treeData = await treeResp.json();
-          if (!treeResp.ok) throw new Error(`Failed to create tree [${treeResp.status}]`);
+          if (!treeResp.ok) throw new Error(`Failed to create tree [${treeResp.status}]: ${JSON.stringify(treeData)}`);
 
           const commitResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/commits`, {
             method: "POST",
