@@ -314,8 +314,8 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
           {stage === "done" && (
             <div className="py-4 space-y-4">
               <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <Check className="w-5 h-5 text-green-500" />
+                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                  <Check className="w-5 h-5 text-accent" />
                 </div>
                 <p className="text-sm font-semibold text-foreground">Published successfully!</p>
                 <p className="text-xs text-muted-foreground text-center">
