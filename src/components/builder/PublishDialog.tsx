@@ -327,7 +327,7 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
                 <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-xs text-foreground font-mono truncate flex-1">{publishedUrl}</span>
                 <button onClick={handleCopy} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors">
-                  {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? <Check className="w-3.5 h-3.5 text-accent" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
                 <a href={publishedUrl} target="_blank" rel="noreferrer" className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors">
                   <ExternalLink className="w-3.5 h-3.5" />
