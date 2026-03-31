@@ -156,6 +156,16 @@
     );
   }
 
+  .dark .gradient-hero {
+    background: linear-gradient(
+      180deg,
+      hsl(220 15% 10%) 0%,
+      hsl(220 20% 15%) 30%,
+      hsl(260 15% 15%) 60%,
+      hsl(220 15% 12%) 100%
+    );
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(30 10% 82%) transparent;

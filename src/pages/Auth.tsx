@@ -60,7 +60,7 @@ export default function Auth() {
             {isLogin ? "Welcome back" : "Create account"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isLogin ? "Sign in to your account" : "Get started with Laughable"}
+            {isLogin ? "Sign in to your account" : "Get started with hikkocode"}
           </p>
         </div>
 

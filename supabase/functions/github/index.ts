@@ -96,9 +96,8 @@ Deno.serve(async (req) => {
     { global: { headers: { Authorization: authHeader } } }
   );
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-  if (claimsError || !claimsData?.claims) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -351,6 +350,108 @@ Deno.serve(async (req) => {
         } catch { /* use default */ }
 
         return json({ success: true, url: pagesUrl, branch });
+      }
+
+      // Import repository contents from a GitHub URL
+      case "import_repo": {
+        const { url } = params;
+        if (!url) throw new Error("GitHub repository URL is required");
+
+        // Parse GitHub URL: https://github.com/owner/repo or https://github.com/owner/repo/tree/branch
+        const urlPattern = /github\.com\/([^\/]+)\/([^\/]+)(?:\/tree\/([^\/]+))?/;
+        const match = url.match(urlPattern);
+        if (!match) throw new Error("Invalid GitHub URL. Format: https://github.com/owner/repo");
+
+        const [, owner, repoName, branch] = match;
+        const repo = repoName.replace(/\.git$/, "");
+
+        // Get repo info to find default branch if not specified
+        const repoResp = await fetch(`${GITHUB_API}/repos/${owner}/${repo}`, { headers: ghHeaders });
+        const repoData = await repoResp.json();
+        if (!repoResp.ok) throw new Error(`Repository not found or not accessible: ${owner}/${repo}`);
+
+        const targetBranch = branch || repoData.default_branch;
+
+        // Get repository tree (recursive)
+        const treeResp = await fetch(
+          `${GITHUB_API}/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
+          { headers: ghHeaders }
+        );
+        const treeData = await treeResp.json();
+        if (!treeResp.ok) throw new Error(`Failed to get repository tree: ${JSON.stringify(treeData)}`);
+
+        // Filter only files (blobs), not directories
+        const fileItems = treeData.tree.filter((item: any) => item.type === "blob");
+
+        // Limit to reasonable number of files
+        const maxFiles = 100;
+        const filesToFetch = fileItems.slice(0, maxFiles);
+
+        // Fetch file contents
+        const files: Array<{ path: string; content: string; language: string }> = [];
+        const textExtensions = [
+          ".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".scss", ".sass", ".less",
+          ".html", ".htm", ".md", ".mdx", ".txt", ".yaml", ".yml", ".xml", ".svg",
+          ".vue", ".svelte", ".astro", ".py", ".rb", ".go", ".rs", ".java", ".c",
+          ".cpp", ".h", ".hpp", ".cs", ".php", ".sh", ".bash", ".zsh", ".fish",
+          ".env", ".gitignore", ".prettierrc", ".eslintrc", ".editorconfig",
+          "Dockerfile", "Makefile", ".toml", ".ini", ".cfg"
+        ];
+
+        const getLanguage = (path: string): string => {
+          const ext = path.includes(".") ? "." + path.split(".").pop()!.toLowerCase() : "";
+          const langMap: Record<string, string> = {
+            ".js": "javascript", ".jsx": "javascript", ".ts": "typescript", ".tsx": "typescript",
+            ".json": "json", ".css": "css", ".scss": "scss", ".html": "html", ".htm": "html",
+            ".md": "markdown", ".mdx": "markdown", ".py": "python", ".rb": "ruby",
+            ".go": "go", ".rs": "rust", ".java": "java", ".vue": "vue", ".svelte": "svelte",
+            ".yaml": "yaml", ".yml": "yaml", ".xml": "xml", ".svg": "xml",
+          };
+          return langMap[ext] || "text";
+        };
+
+        for (const item of filesToFetch) {
+          const ext = item.path.includes(".") ? "." + item.path.split(".").pop()!.toLowerCase() : item.path;
+          const isTextFile = textExtensions.some(e => ext.endsWith(e) || item.path.endsWith(e));
+
+          if (!isTextFile && item.size > 50000) continue; // Skip large non-text files
+
+          try {
+            const contentResp = await fetch(
+              `${GITHUB_API}/repos/${owner}/${repo}/contents/${item.path}?ref=${targetBranch}`,
+              { headers: ghHeaders }
+            );
+            const contentData = await contentResp.json();
+
+            if (contentResp.ok && contentData.content) {
+              // Decode base64 content
+              const content = atob(contentData.content.replace(/\n/g, ""));
+              files.push({
+                path: item.path,
+                content,
+                language: getLanguage(item.path),
+              });
+            }
+          } catch (e) {
+            // Skip files that can't be fetched
+            console.warn(`Failed to fetch ${item.path}:`, e);
+          }
+        }
+
+        return json({
+          success: true,
+          repo: {
+            owner,
+            name: repo,
+            full_name: `${owner}/${repo}`,
+            branch: targetBranch,
+            html_url: repoData.html_url,
+            description: repoData.description,
+          },
+          files,
+          totalFiles: fileItems.length,
+          fetchedFiles: files.length,
+        });
       }
 
       default:
