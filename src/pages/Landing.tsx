@@ -1,9 +1,17 @@
 import { motion } from "framer-motion";
-import { ArrowUp, Plus, MessageCircle, Key, FolderOpen, Star, Clock, ArrowRight } from "lucide-react";
+import { ArrowUp, Plus, MessageCircle, Key, FolderOpen, Star, Clock, ArrowRight, Github, Download, Loader2, Check, FileCode, ExternalLink, GitBranch } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, FormEvent } from "react";
 import { useApp } from "@/context/AppContext";
 import { ApiKeyDialog } from "@/components/ApiKeyDialog";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 function ProjectCard({ project, onClick }: { project: any; onClick: () => void }) {
   const timeAgo = (date: Date) => {
@@ -55,9 +63,19 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { user, projects, createProject, setActiveProject } = useApp();
+  const { user, projects, createProject, setActiveProject, setFiles } = useApp();
   const [prompt, setPrompt] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState<{
+    repo: { owner: string; name: string; branch: string; html_url: string };
+    files: Array<{ path: string; content: string; language: string }>;
+    totalFiles: number;
+    fetchedFiles: number;
+  } | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -74,6 +92,56 @@ export default function Landing() {
 
   const handleOpenProject = (project: any) => {
     setActiveProject(project);
+    navigate("/builder");
+  };
+
+  const handleImportRepo = async () => {
+    if (!importUrl.trim()) return;
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    
+    setImporting(true);
+    setImportError("");
+    setImportResult(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("github", {
+        body: { action: "import_repo", url: importUrl.trim() },
+      });
+      
+      if (error) throw new Error(error.message || "Import failed");
+      if (data?.error) throw new Error(data.error);
+      
+      setImportResult(data);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Failed to import repository");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleApplyImport = async () => {
+    if (!importResult) return;
+    
+    const project = await createProject(
+      importResult.repo.name,
+      `Imported from ${importResult.repo.html_url}`
+    );
+
+    const formattedFiles = importResult.files.map(f => ({
+      name: f.path.split("/").pop() || f.path,
+      path: f.path,
+      content: f.content,
+      language: f.language,
+    }));
+
+    setFiles(project.id, formattedFiles, `Import from GitHub: ${importResult.repo.owner}/${importResult.repo.name}`);
+
+    setImportResult(null);
+    setImportUrl("");
+    setShowImport(false);
     navigate("/builder");
   };
 
@@ -194,6 +262,17 @@ export default function Landing() {
               </button>
             ))}
           </div>
+
+          {/* Import from GitHub */}
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+            >
+              <Github className="w-4 h-4" />
+              Import from GitHub
+            </button>
+          </div>
         </motion.div>
       </div>
 
@@ -238,6 +317,137 @@ export default function Landing() {
       </footer>
 
       <ApiKeyDialog open={showApiKey} onClose={() => setShowApiKey(false)} />
+
+      {/* Import from GitHub Dialog */}
+      <Dialog open={showImport} onOpenChange={(v) => !v && setShowImport(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Github className="w-5 h-5" />
+              Import from GitHub
+            </DialogTitle>
+            <DialogDescription>
+              Paste a GitHub repository URL to import its files as a new project.
+            </DialogDescription>
+          </DialogHeader>
+
+          {importError && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+              <p className="text-xs text-destructive">{importError}</p>
+            </div>
+          )}
+
+          {!importResult ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">
+                  Repository URL
+                </label>
+                <input
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  placeholder="https://github.com/owner/repo"
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+                  onKeyDown={(e) => e.key === "Enter" && handleImportRepo()}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Works with public repositories
+                </p>
+              </div>
+              <button
+                onClick={handleImportRepo}
+                disabled={!importUrl.trim() || importing}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+              >
+                {importing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Import Repository
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-medium text-emerald-400">Repository Loaded</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Repository</span>
+                    <a
+                      href={importResult.repo.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      {importResult.repo.owner}/{importResult.repo.name}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Branch</span>
+                    <span className="flex items-center gap-1 text-xs text-foreground">
+                      <GitBranch className="w-3 h-3" />
+                      {importResult.repo.branch}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Files</span>
+                    <span className="flex items-center gap-1 text-xs text-foreground">
+                      <FileCode className="w-3 h-3" />
+                      {importResult.fetchedFiles} / {importResult.totalFiles}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-2">Files to import:</p>
+                <div className="max-h-[120px] overflow-y-auto scrollbar-thin space-y-0.5">
+                  {importResult.files.slice(0, 15).map((file, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <FileCode className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate text-foreground">{file.path}</span>
+                    </div>
+                  ))}
+                  {importResult.files.length > 15 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      ... and {importResult.files.length - 15} more files
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setImportResult(null);
+                    setImportUrl("");
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border text-foreground text-xs font-medium hover:bg-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApplyImport}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Create Project
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

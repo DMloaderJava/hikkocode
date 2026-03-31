@@ -14,6 +14,8 @@ import {
   Upload,
   Loader2,
   AlertCircle,
+  Download,
+  FileCode,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,7 +55,7 @@ interface RepoConnection {
   connectedAt: Date;
 }
 
-type Tab = "connect" | "create";
+type Tab = "connect" | "create" | "import";
 
 interface PRResult {
   number: number;
@@ -72,14 +74,14 @@ async function callGitHub(action: string, params: Record<string, unknown> = {}) 
 }
 
 export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
-  const { activeProject } = useApp();
+  const { activeProject, setFiles, createProject } = useApp();
   const [ghUser, setGhUser] = useState<GitHubUser | null>(null);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [connection, setConnection] = useState<RepoConnection | null>(null);
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<Tab>("connect");
+  const [tab, setTab] = useState<Tab>("import");
   const [pushing, setPushing] = useState(false);
   const [pushSuccess, setPushSuccess] = useState(false);
 
@@ -90,6 +92,16 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
   const [creating, setCreating] = useState(false);
   const [creatingPR, setCreatingPR] = useState(false);
   const [prResult, setPrResult] = useState<PRResult | null>(null);
+
+  // Import repo form
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    repo: { owner: string; name: string; branch: string; html_url: string };
+    files: Array<{ path: string; content: string; language: string }>;
+    totalFiles: number;
+    fetchedFiles: number;
+  } | null>(null);
 
   // Load GitHub user + repos on open
   useEffect(() => {
@@ -213,6 +225,46 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
     );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleImportRepo = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setError("");
+    setImportResult(null);
+    try {
+      const data = await callGitHub("import_repo", { url: importUrl.trim() });
+      setImportResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import repository");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleApplyImport = async () => {
+    if (!importResult) return;
+    
+    // Create a new project with imported files
+    const project = await createProject(
+      importResult.repo.name,
+      `Imported from ${importResult.repo.html_url}`
+    );
+
+    // Set the files to the imported files
+    const formattedFiles = importResult.files.map(f => ({
+      name: f.path.split("/").pop() || f.path,
+      path: f.path,
+      content: f.content,
+      language: f.language,
+    }));
+
+    setFiles(project.id, formattedFiles, `Import from GitHub: ${importResult.repo.owner}/${importResult.repo.name}`);
+
+    // Reset import state and close dialog
+    setImportResult(null);
+    setImportUrl("");
+    onClose();
   };
 
   return (
@@ -388,30 +440,156 @@ export function GitHubDialog({ open, onClose }: GitHubDialogProps) {
             {/* Tabs */}
             <div className="flex items-center bg-secondary/60 rounded-lg p-0.5 gap-0.5">
               <button
+                onClick={() => setTab("import")}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  tab === "import"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                Import
+              </button>
+              <button
                 onClick={() => setTab("connect")}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
                   tab === "connect"
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Link2 className="w-3.5 h-3.5" />
-                Connect Existing
+                Connect
               </button>
               <button
                 onClick={() => setTab("create")}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
                   tab === "create"
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Plus className="w-3.5 h-3.5" />
-                Create New
+                Create
               </button>
             </div>
 
-            {tab === "connect" ? (
+            {tab === "import" ? (
+              /* Import repo form */
+              <div className="space-y-3">
+                {!importResult ? (
+                  <>
+                    <div>
+                      <label className="text-xs font-medium text-foreground mb-1 block">
+                        GitHub Repository URL
+                      </label>
+                      <input
+                        value={importUrl}
+                        onChange={(e) => setImportUrl(e.target.value)}
+                        placeholder="https://github.com/owner/repo"
+                        className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+                        onKeyDown={(e) => e.key === "Enter" && handleImportRepo()}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Paste any public GitHub repository URL to import its files
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleImportRepo}
+                      disabled={!importUrl.trim() || importing}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4" />
+                          Import Repository
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  /* Import result */
+                  <div className="space-y-3">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-medium text-emerald-400">Repository Loaded</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Repository</span>
+                          <a
+                            href={importResult.repo.html_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            {importResult.repo.owner}/{importResult.repo.name}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Branch</span>
+                          <span className="flex items-center gap-1 text-xs text-foreground">
+                            <GitBranch className="w-3 h-3" />
+                            {importResult.repo.branch}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Files</span>
+                          <span className="flex items-center gap-1 text-xs text-foreground">
+                            <FileCode className="w-3 h-3" />
+                            {importResult.fetchedFiles} / {importResult.totalFiles}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview some files */}
+                    <div className="bg-secondary/30 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-2">Files to import:</p>
+                      <div className="max-h-[120px] overflow-y-auto scrollbar-thin space-y-0.5">
+                        {importResult.files.slice(0, 20).map((file, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <FileCode className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate text-foreground">{file.path}</span>
+                          </div>
+                        ))}
+                        {importResult.files.length > 20 && (
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            ... and {importResult.files.length - 20} more files
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setImportResult(null);
+                          setImportUrl("");
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg border border-border text-foreground text-xs font-medium hover:bg-secondary transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleApplyImport}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-90 transition-opacity"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Create Project
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : tab === "connect" ? (
               /* Repo list */
               <div className="space-y-1 max-h-[300px] overflow-y-auto scrollbar-thin">
                 {repos.length === 0 ? (
