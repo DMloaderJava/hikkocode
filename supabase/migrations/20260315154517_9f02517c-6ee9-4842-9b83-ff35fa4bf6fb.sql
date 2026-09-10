@@ -1,6 +1,6 @@
 
 -- Agent tasks table
-CREATE TABLE public.agent_tasks (
+CREATE TABLE IF NOT EXISTS public.agent_tasks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
   user_id uuid NOT NULL,
@@ -26,10 +26,11 @@ CREATE TABLE public.agent_tasks (
 );
 
 ALTER TABLE public.agent_tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own tasks" ON public.agent_tasks;
 CREATE POLICY "Users manage own tasks" ON public.agent_tasks FOR ALL TO authenticated USING (user_id = auth.uid());
 
 -- File index for project understanding
-CREATE TABLE public.file_index (
+CREATE TABLE IF NOT EXISTS public.file_index (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
   file_path text NOT NULL,
@@ -46,11 +47,12 @@ CREATE TABLE public.file_index (
 );
 
 ALTER TABLE public.file_index ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own file index" ON public.file_index;
 CREATE POLICY "Users read own file index" ON public.file_index FOR ALL TO authenticated
   USING (project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid()));
 
 -- Task execution logs
-CREATE TABLE public.task_logs (
+CREATE TABLE IF NOT EXISTS public.task_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id uuid REFERENCES public.agent_tasks(id) ON DELETE CASCADE NOT NULL,
   level text NOT NULL DEFAULT 'info',
@@ -61,11 +63,12 @@ CREATE TABLE public.task_logs (
 );
 
 ALTER TABLE public.task_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own task logs" ON public.task_logs;
 CREATE POLICY "Users read own task logs" ON public.task_logs FOR ALL TO authenticated
   USING (task_id IN (SELECT id FROM public.agent_tasks WHERE user_id = auth.uid()));
 
 -- Applied patches history
-CREATE TABLE public.applied_patches (
+CREATE TABLE IF NOT EXISTS public.applied_patches (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id uuid REFERENCES public.agent_tasks(id) ON DELETE CASCADE NOT NULL,
   file_path text NOT NULL,
@@ -78,9 +81,18 @@ CREATE TABLE public.applied_patches (
 );
 
 ALTER TABLE public.applied_patches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users read own patches" ON public.applied_patches;
 CREATE POLICY "Users read own patches" ON public.applied_patches FOR ALL TO authenticated
   USING (task_id IN (SELECT id FROM public.agent_tasks WHERE user_id = auth.uid()));
 
 -- Enable realtime for task updates
-ALTER PUBLICATION supabase_realtime ADD TABLE public.agent_tasks;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.task_logs;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='agent_tasks') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.agent_tasks;
+  END IF;
+END $pub$;
+DO $pub$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='task_logs') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.task_logs;
+  END IF;
+END $pub$;

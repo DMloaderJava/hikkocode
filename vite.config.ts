@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    // Allow the sandbox/preview hostname (e.g. *.e2b.app) to reach the dev server.
+    allowedHosts: true,
     hmr: {
       overlay: false,
     },
