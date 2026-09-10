@@ -3,6 +3,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { getFunctionHeaders } from "./functionAuth";
 
 const BASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -56,12 +57,8 @@ interface AppliedPatch {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-  };
+  // Edge functions require a real user JWT — never fall back to the anon key.
+  return getFunctionHeaders();
 }
 
 /**

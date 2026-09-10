@@ -5,6 +5,7 @@
 
 import { GeneratedFile } from "@/context/AppContext";
 import { buildSmartContext, buildFullContext } from "./fileTools";
+import { getFunctionHeaders } from "./functionAuth";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -122,10 +123,7 @@ async function generateSingleFile(
 
   const resp = await fetch(CHAT_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
+    headers: await getFunctionHeaders(),
     body: JSON.stringify({
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,

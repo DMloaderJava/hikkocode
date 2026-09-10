@@ -15,6 +15,7 @@ import { useApp, ChatMessage, GeneratedFile, GenerationTask, TaskStep } from "@/
 import { buildSmartContext, buildFullContext } from "@/lib/fileTools";
 import { diffFiles, diffSummary, type FileDiff } from "@/lib/diff";
 import { buildFileTasks, executePerFile } from "@/lib/perFileAgent";
+import { getFunctionHeaders, NotAuthenticatedError, redirectToAuth } from "@/lib/functionAuth";
 import { useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { TaskCard } from "./TaskCard";
@@ -289,10 +290,7 @@ export function ChatPanel() {
       try {
         const planResp = await fetch(PLAN_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: await getFunctionHeaders(),
           body: JSON.stringify({
             prompt: prompt.trim(),
             existingFiles: activeProject.files.map(f => ({
@@ -539,6 +537,12 @@ export function ChatPanel() {
         const stopMsg = "⏹️ Agent stopped by user.";
         updateLastAssistantMessage(activeProject.id, stopMsg);
         persistAssistantMessage(activeProject.id, assistantMsgId, stopMsg);
+      } else if (err instanceof NotAuthenticatedError) {
+        console.error("[ChatPanel] generation aborted: no valid session", err);
+        const authMsg = "🔒 Session expired. Redirecting to sign in...";
+        updateLastAssistantMessage(activeProject.id, authMsg);
+        toast.error(err.message);
+        redirectToAuth();
       } else {
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         const errMsg = `⚠️ Something went wrong: ${errorMessage}`;

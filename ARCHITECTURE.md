@@ -31,7 +31,7 @@ supabase/
 | `Project` | проект пользователя (`name`, `description`, `version`) | таблица `projects` |
 | `ChatMessage` | сообщение чата (`role`, `content`) | таблица `chat_messages` |
 | `GenerationTask` | задача генерации одного файла в UI | только в памяти |
-| `VersionSnapshot` | снапшот всех файлов для отката | **только в памяти** (таблица `version_snapshots` есть, но не пишется) |
+| `VersionSnapshot` | снапшот всех файлов для отката | таблица `version_snapshots` (пишется при каждом `setFiles` и перед откатом, гидрируется в `loadProjects`) |
 
 Сохранение файлов: дебаунс 500 мс, затем `delete()` всех строк проекта +
 `insert()` актуального набора. То есть запись — полная перезапись набора файлов,
@@ -114,12 +114,23 @@ HTML-документ: вырезает локальные `<link>`/`<script>` �
 allow-same-origin allow-popups allow-forms">`. Это не настоящий бандлер: сложные
 импорты между модулями проекта не резолвятся.
 
-## 6. Текущие ограничения и техдолг
+## 6. Безопасность
 
-- `verify_jwt = false` для всех функций — публичные эндпоинты без авторизации.
-- История версий не персистится (`version_snapshots` не заполняется).
+- Все edge-функции: `verify_jwt = true` в `supabase/config.toml`.
+- `supabase/functions/_shared/auth.ts` — общий модуль: `corsHeaders`,
+  `handleCorsPreflight` (OPTIONS → 204 без JWT), `requireUser` (валидация токена
+  через `supabase.auth.getUser()`, 401 при отсутствии/протухании) и
+  user-scoped Supabase-клиент, к которому применяется RLS.
+- Каждая функция начинается с preflight-проверки и `requireUser`.
+- Фронтенд: `src/lib/functionAuth.ts` отдаёт заголовки с `access_token`;
+  анонимный ключ больше нигде не используется как Bearer-токен.
+
+## 7. Текущие ограничения и техдолг
+
 - Сохранение файлов через `delete()+insert()` — не атомарно, гонки при частых
   правках.
+- Снапшоты версий не подрезаются: у долгоживущего проекта таблица
+  `version_snapshots` будет расти неограниченно.
 - Один бандл ~1 МБ без код-сплиттинга.
 - CI (`.github/workflows/agent-ci.yml`): lint, `tsc --noEmit` и тесты помечены
   `continue-on-error`, реально гейтит только `npm run build`.

@@ -1,16 +1,25 @@
 project_id = "vydetbtpssewhqfjcydt"
 
+# All functions require a valid Supabase user JWT.
+# LLM generation and agent loops must never be publicly callable — an anon key
+# alone is enough to burn API quota. There are currently no webhook-style
+# functions that need public access; if one is added, set verify_jwt = false
+# for it explicitly and document why here.
+
 [functions.generate]
-verify_jwt = false
+verify_jwt = true
 
 [functions.chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.plan]
-verify_jwt = false
+verify_jwt = true
 
 [functions.agent]
-verify_jwt = false
+verify_jwt = true
 
 [functions.indexer]
-verify_jwt = false
+verify_jwt = true
+
+[functions.github]
+verify_jwt = true

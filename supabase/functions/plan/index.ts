@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders, handleCorsPreflight, requireUser, isAuthFailure } from "../_shared/auth.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const PLANNING_PROMPT = `You are hikkocode AI Agent — an expert full-stack developer that analyzes tasks and creates structured plans.
 
@@ -131,9 +127,11 @@ async function getPlan(messages: Array<{ role: string; content: string }>): Prom
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+
+  const auth = await requireUser(req);
+  if (isAuthFailure(auth)) return auth.response;
 
   try {
     const { prompt, existingFiles } = await req.json();

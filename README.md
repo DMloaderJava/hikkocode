@@ -79,11 +79,17 @@ npm run dev               # http://localhost:8080
 
 ## Известные ограничения
 
-- Все edge-функции задеплоены с `verify_jwt = false` (`supabase/config.toml`) —
-  публичные эндпоинты, есть риск абьюза квоты LLM.
-- История версий проекта живёт только в памяти (`AppContext`), после перезагрузки
-  страницы откат недоступен, хотя таблица `version_snapshots` существует.
 - Основной JS-бандл ~1 МБ (≈300 кБ gzip), код-сплиттинга нет.
+- `npm run lint` пока даёт ошибки (в основном `no-explicit-any`) — в CI не гейтит.
+
+## Авторизация вызовов Edge Functions
+
+Все функции задеплоены с `verify_jwt = true`, поэтому любой вызов должен нести
+JWT текущей сессии пользователя. На фронтенде для прямых `fetch` используется
+`src/lib/functionAuth.ts` (`getFunctionHeaders()`); вызовы через
+`supabase.functions.invoke()` подставляют токен сами. Если сессии нет,
+`getFunctionHeaders()` бросает `NotAuthenticatedError`, UI показывает toast и
+редиректит на `/auth`.
 
 ## Документация
 

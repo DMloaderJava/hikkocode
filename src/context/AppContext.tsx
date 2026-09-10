@@ -1,6 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { toast } from "sonner";
+
+/**
+ * Central place for reporting persistence failures.
+ * Never swallow a Supabase error silently: log with context and, for
+ * user-visible operations, surface a toast.
+ */
+function reportPersistenceError(context: string, error: unknown, userMessage?: string) {
+  console.error(`[AppContext] ${context} failed:`, error);
+  if (userMessage) toast.error(userMessage);
+}
 
 export interface GeneratedFile {
   name: string;
@@ -143,20 +154,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const user = userRef.current;
     if (!user) return;
 
-    const { data: projectRows } = await supabase
+    const { data: projectRows, error: projectsError } = await supabase
       .from("projects")
       .select("*")
       .order("created_at", { ascending: false });
 
+    if (projectsError) {
+      reportPersistenceError("loading projects", projectsError, "Could not load your projects. Check your connection and retry.");
+      return;
+    }
     if (!projectRows) return;
 
     const projects: Project[] = [];
 
     for (const row of projectRows) {
-      const [{ data: fileRows }, { data: msgRows }] = await Promise.all([
+      const [
+        { data: fileRows, error: filesError },
+        { data: msgRows, error: msgError },
+        { data: snapshotRows, error: snapshotError },
+      ] = await Promise.all([
         supabase.from("project_files").select("*").eq("project_id", row.id),
         supabase.from("chat_messages").select("*").eq("project_id", row.id).order("created_at", { ascending: true }),
+        supabase.from("version_snapshots").select("*").eq("project_id", row.id).order("created_at", { ascending: true }),
       ]);
+
+      if (filesError) reportPersistenceError(`loading files of project ${row.id}`, filesError);
+      if (msgError) reportPersistenceError(`loading messages of project ${row.id}`, msgError);
+      if (snapshotError) reportPersistenceError(`loading version history of project ${row.id}`, snapshotError);
 
       projects.push({
         id: row.id,
@@ -179,7 +203,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             content: m.content,
             timestamp: new Date(m.created_at),
           })),
-        history: [],
+        // Hydrate version history from the DB so rollback survives a page reload
+        history: (snapshotRows || []).map(sn => ({
+          id: sn.id,
+          version: sn.version,
+          prompt: sn.prompt || "",
+          files: (sn.files as unknown as GeneratedFile[]) || [],
+          timestamp: new Date(sn.created_at),
+        })),
       });
     }
 
@@ -341,7 +372,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         role: "assistant",
         content: content,
       })
-      .then();
+      .then(({ error }) => {
+        if (error) reportPersistenceError(`saving assistant message ${messageId}`, error, "Could not save the chat message.");
+      });
   }, []);
 
   // Debounced DB persistence to avoid DELETE/INSERT race conditions
@@ -355,18 +388,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .from("project_files")
       .delete()
       .eq("project_id", projectId)
-      .then(() => {
-        if (files.length > 0) {
-          supabase
-            .from("project_files")
-            .insert(files.map(f => ({
-              project_id: projectId,
-              name: f.name,
-              path: f.path,
-              language: f.language,
-              content: f.content,
-            })))
-            .then();
+      .then(({ error: deleteError }) => {
+        if (deleteError) {
+          reportPersistenceError(`clearing files of project ${projectId}`, deleteError, "Could not save your files. Your latest changes exist only in this tab.");
+          return;
+        }
+        if (files.length === 0) return;
+        supabase
+          .from("project_files")
+          .insert(files.map(f => ({
+            project_id: projectId,
+            name: f.name,
+            path: f.path,
+            language: f.language,
+            content: f.content,
+          })))
+          .then(({ error: insertError }) => {
+            if (insertError) {
+              reportPersistenceError(`saving files of project ${projectId}`, insertError, "Could not save your files. Your latest changes exist only in this tab.");
+            }
+          });
+      });
+  }, []);
+
+  /** Persist a version snapshot so history survives a page reload. */
+  const persistSnapshot = useCallback((projectId: string, snapshot: VersionSnapshot) => {
+    const user = userRef.current;
+    if (!user) return;
+    supabase
+      .from("version_snapshots")
+      .insert({
+        id: snapshot.id,
+        project_id: projectId,
+        version: snapshot.version,
+        prompt: snapshot.prompt,
+        files: snapshot.files as unknown as never,
+      })
+      .then(({ error }) => {
+        if (error) {
+          reportPersistenceError(`saving version snapshot v${snapshot.version} of project ${projectId}`, error, "Could not save this version to history. Rollback may be unavailable after a reload.");
         }
       });
   }, []);
@@ -383,17 +443,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }, 500);
 
+    // Side effects (DB writes) are collected during the state update and run
+    // afterwards, so React strict-mode double invocation cannot duplicate them.
+    let snapshotToPersist: VersionSnapshot | null = null;
+    let versionToPersist: number | null = null;
+
     setState(prev => {
       const updateProject = (p: Project): Project => {
         const newVersion = p.version + 1;
-        const user = userRef.current;
-        if (user) {
-          supabase
-            .from("projects")
-            .update({ version: newVersion, updated_at: new Date().toISOString() })
-            .eq("id", projectId)
-            .then();
-        }
+        versionToPersist = newVersion;
 
         const snapshot: VersionSnapshot = {
           id: crypto.randomUUID(),
@@ -402,7 +460,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prompt: prompt || "Unknown change",
           timestamp: new Date(),
         };
-        const newHistory = p.files.length > 0 ? [...p.history, snapshot] : p.history;
+        let newHistory = p.history;
+        if (p.files.length > 0) {
+          newHistory = [...p.history, snapshot];
+          snapshotToPersist = snapshot;
+        }
         return { ...p, files, version: newVersion, history: newHistory };
       };
 
@@ -414,9 +476,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : prev.activeProject;
       return { ...prev, projects, activeProject };
     });
-  }, [flushFilesToDb]);
+
+    const user = userRef.current;
+    if (user && versionToPersist !== null) {
+      supabase
+        .from("projects")
+        .update({ version: versionToPersist, updated_at: new Date().toISOString() })
+        .eq("id", projectId)
+        .then(({ error }) => {
+          if (error) reportPersistenceError(`bumping version of project ${projectId}`, error);
+        });
+    }
+    if (snapshotToPersist) persistSnapshot(projectId, snapshotToPersist);
+  }, [flushFilesToDb, persistSnapshot]);
 
   const restoreVersion = useCallback((projectId: string, versionId: string) => {
+    let backupSnapshot: VersionSnapshot | null = null;
+    let restoredFiles: GeneratedFile[] | null = null;
+    let newVersion: number | null = null;
+
     setState(prev => {
       const restoreInProject = (p: Project): Project => {
         const snapshot = p.history.find(h => h.id === versionId);
@@ -428,10 +506,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prompt: `Before restoring to v${snapshot.version}`,
           timestamp: new Date(),
         };
+        backupSnapshot = currentSnapshot;
+        restoredFiles = snapshot.files;
+        newVersion = p.version + 1;
         return {
           ...p,
           files: snapshot.files,
-          version: p.version + 1,
+          version: newVersion,
           history: [...p.history, currentSnapshot],
         };
       };
@@ -444,7 +525,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : prev.activeProject;
       return { ...prev, projects, activeProject };
     });
-  }, []);
+
+    if (!restoredFiles) {
+      reportPersistenceError(`restoring version ${versionId}`, new Error("snapshot not found in history"), "That version could not be found.");
+      return;
+    }
+
+    // Persist the pre-restore backup and the restored file set.
+    if (backupSnapshot) persistSnapshot(projectId, backupSnapshot);
+    flushFilesToDb(projectId, restoredFiles);
+
+    const user = userRef.current;
+    if (user && newVersion !== null) {
+      supabase
+        .from("projects")
+        .update({ version: newVersion, updated_at: new Date().toISOString() })
+        .eq("id", projectId)
+        .then(({ error }) => {
+          if (error) reportPersistenceError(`bumping version of project ${projectId}`, error);
+        });
+    }
+    toast.success("Version restored");
+  }, [flushFilesToDb, persistSnapshot]);
 
   const setIsGenerating = useCallback((v: boolean) => {
     setState(prev => ({ ...prev, isGenerating: v }));

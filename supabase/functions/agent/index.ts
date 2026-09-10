@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders, handleCorsPreflight, requireUser, isAuthFailure } from "../_shared/auth.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const GITHUB_API = "https://api.github.com";
 
@@ -489,16 +485,12 @@ function inferLanguage(path: string): string {
 // =================== HTTP HANDLER ===================
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const auth = await requireUser(req);
+  if (isAuthFailure(auth)) return auth.response;
+  const { user, authHeader } = auth;
 
   const supabase = getSupabase(authHeader);
   const url = new URL(req.url);
@@ -514,13 +506,6 @@ serve(async (req) => {
 
       if (!user_request || !project_id) {
         return json({ error: "user_request and project_id are required" }, 400);
-      }
-
-      // Get user
-      const token = authHeader.replace("Bearer ", "");
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) {
-        return json({ error: "Unauthorized" }, 401);
       }
 
       // Create task
